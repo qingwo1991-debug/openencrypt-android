@@ -51,6 +51,7 @@ echo "[2/4] build openlist-runtime (Go, armeabi-v7a)"
 
 echo "[3/4] build openencrypt-gateway (Rust, arm64-v8a)"
 rustup target add aarch64-linux-android >/dev/null
+CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN/aarch64-linux-android21-clang" \
 CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android21-clang" \
 AR_aarch64_linux_android="$TOOLCHAIN/llvm-ar" \
   cargo build --manifest-path "$ROOT/core-encrypt-rs/Cargo.toml" --bin openencrypt-gateway --release --target aarch64-linux-android
@@ -58,6 +59,7 @@ cp "$ROOT/core-encrypt-rs/target/aarch64-linux-android/release/openencrypt-gatew
 
 echo "[4/4] build openencrypt-gateway (Rust, armeabi-v7a)"
 rustup target add armv7-linux-androideabi >/dev/null
+CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN/armv7a-linux-androideabi21-clang" \
 CC_armv7_linux_androideabi="$TOOLCHAIN/armv7a-linux-androideabi21-clang" \
 AR_armv7_linux_androideabi="$TOOLCHAIN/llvm-ar" \
   cargo build --manifest-path "$ROOT/core-encrypt-rs/Cargo.toml" --bin openencrypt-gateway --release --target armv7-linux-androideabi
