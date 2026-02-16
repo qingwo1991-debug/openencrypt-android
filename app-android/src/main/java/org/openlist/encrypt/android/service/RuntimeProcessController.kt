@@ -108,7 +108,7 @@ class DefaultRuntimeProcessController(
         if (!isProcessRunning(p)) return
         p.destroy()
         if (!waitUntilExit(p, 1500)) {
-            p.destroyForcibly()
+            p.destroy()
             waitUntilExit(p, 1000)
         }
     }
