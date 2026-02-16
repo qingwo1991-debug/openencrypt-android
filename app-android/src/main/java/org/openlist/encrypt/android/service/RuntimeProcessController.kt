@@ -7,7 +7,6 @@ import org.openlist.encrypt.android.config.ConfigRepository
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.concurrent.TimeUnit
 
 interface RuntimeProcessController {
     suspend fun startOpenList()
@@ -108,9 +107,9 @@ class DefaultRuntimeProcessController(
     private fun stopProcess(p: Process) {
         if (!isProcessRunning(p)) return
         p.destroy()
-        if (!p.waitFor(1500, TimeUnit.MILLISECONDS)) {
+        if (!waitUntilExit(p, 1500)) {
             p.destroyForcibly()
-            p.waitFor(1000, TimeUnit.MILLISECONDS)
+            waitUntilExit(p, 1000)
         }
     }
 
@@ -122,6 +121,14 @@ class DefaultRuntimeProcessController(
         } catch (_: IllegalThreadStateException) {
             true
         }
+    }
+
+    private fun waitUntilExit(p: Process, timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (isProcessRunning(p) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50)
+        }
+        return !isProcessRunning(p)
     }
 
     private suspend fun probe(url: String): Boolean = withContext(Dispatchers.IO) {
