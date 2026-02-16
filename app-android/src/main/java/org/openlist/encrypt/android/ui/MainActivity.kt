@@ -3,389 +3,203 @@ package org.openlist.encrypt.android.ui
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.switchmaterial.SwitchMaterial
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textview.MaterialTextView
 import org.openlist.encrypt.android.R
 import org.openlist.encrypt.android.config.AppRuntimeConfig
 import org.openlist.encrypt.android.config.ConfigRepository
-import org.openlist.encrypt.android.config.EncryptRule
+import org.openlist.encrypt.android.config.ConfigValidator
 import org.openlist.encrypt.android.config.SchemaFieldRegistry
+import org.openlist.encrypt.android.diagnostics.DiagnosticItem
 import org.openlist.encrypt.android.service.RuntimeService
 import org.openlist.encrypt.android.update.UpdateCoordinator
 import org.openlist.encrypt.android.update.UpdateHistoryStore
 import java.util.concurrent.Executors
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), MainUiHost {
     private val ioExecutor = Executors.newSingleThreadExecutor()
+    private lateinit var configRepo: ConfigRepository
+    private lateinit var updateCoordinator: UpdateCoordinator
+    private lateinit var updateHistoryStore: UpdateHistoryStore
+
+    private var currentConfig: AppRuntimeConfig = AppRuntimeConfig()
+    private var schemaFields = 0
+    private var lastChanged = 0
+    private var currentMenuId = R.id.nav_dashboard
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        val pageDashboard = findViewById<View>(R.id.pageDashboard)
-        val pageCloud = findViewById<View>(R.id.pageCloud)
-        val pageEncrypt = findViewById<View>(R.id.pageEncrypt)
-        val pageTasks = findViewById<View>(R.id.pageTasks)
-        val pageSettings = findViewById<View>(R.id.pageSettings)
-        val dashboardSummary = findViewById<MaterialTextView>(R.id.dashboardSummary)
-        val settingsSummary = findViewById<MaterialTextView>(R.id.settingsSummary)
-        val updateStatus = findViewById<MaterialTextView>(R.id.updateStatus)
-        val updateHistory = findViewById<MaterialTextView>(R.id.updateHistory)
-        val checkUpdate = findViewById<MaterialButton>(R.id.checkUpdate)
-        val installUpdate = findViewById<MaterialButton>(R.id.installUpdate)
-
-        val cloudHostInput = findViewById<TextInputEditText>(R.id.cloudHostInput)
-        val cloudPortInput = findViewById<TextInputEditText>(R.id.cloudPortInput)
-        val cloudHttpsSwitch = findViewById<SwitchMaterial>(R.id.cloudHttpsSwitch)
-        val cloudSaveButton = findViewById<MaterialButton>(R.id.cloudSaveButton)
-
-        val encryptPathInput = findViewById<TextInputEditText>(R.id.encryptPathInput)
-        val encryptPasswordInput = findViewById<TextInputEditText>(R.id.encryptPasswordInput)
-        val encryptTypeInput = findViewById<TextInputEditText>(R.id.encryptTypeInput)
-        val encryptNameSwitch = findViewById<SwitchMaterial>(R.id.encryptNameSwitch)
-        val encryptEnableSwitch = findViewById<SwitchMaterial>(R.id.encryptEnableSwitch)
-        val encryptRuleIndexInput = findViewById<TextInputEditText>(R.id.encryptRuleIndexInput)
-        val encryptAddRuleButton = findViewById<MaterialButton>(R.id.encryptAddRuleButton)
-        val encryptUpdateRuleButton = findViewById<MaterialButton>(R.id.encryptUpdateRuleButton)
-        val encryptDeleteRuleButton = findViewById<MaterialButton>(R.id.encryptDeleteRuleButton)
-        val encryptClearRulesButton = findViewById<MaterialButton>(R.id.encryptClearRulesButton)
-        val encryptRulesPreview = findViewById<MaterialTextView>(R.id.encryptRulesPreview)
-
-        val tasksWebdavSwitch = findViewById<SwitchMaterial>(R.id.tasksWebdavSwitch)
-        val tasksHeaderTimeoutInput = findViewById<TextInputEditText>(R.id.tasksHeaderTimeoutInput)
-        val tasksReadIdleInput = findViewById<TextInputEditText>(R.id.tasksReadIdleInput)
-        val tasksProbeBudgetInput = findViewById<TextInputEditText>(R.id.tasksProbeBudgetInput)
-        val tasksSaveButton = findViewById<MaterialButton>(R.id.tasksSaveButton)
-
         toolbar.title = getString(R.string.app_name)
 
-        val configRepo = ConfigRepository(this)
-        var currentConfig = configRepo.loadOrDefault()
-        var lastChangedCount = 0
+        configRepo = ConfigRepository(this)
+        updateCoordinator = UpdateCoordinator(this)
+        updateHistoryStore = UpdateHistoryStore(this)
+        currentConfig = configRepo.loadOrDefault()
 
-        val schemaFields = runCatching {
+        schemaFields = runCatching {
             val registry = SchemaFieldRegistry(this)
             val fields = registry.loadFields()
-            val dupErrors = registry.validatePrimaryEditPages(fields)
-            if (dupErrors.isNotEmpty()) {
-                throw IllegalStateException(dupErrors.joinToString())
-            }
-            fields
-        }.getOrDefault(emptyList())
-
-        val updateCoordinator = UpdateCoordinator(this)
-        val updateHistoryStore = UpdateHistoryStore(this)
-
-        fun renderSettingsSummary() {
-            settingsSummary.text = getString(
-                R.string.page_settings_summary,
-                schemaFields.size,
-                lastChangedCount
-            )
-        }
-
-        fun renderUpdateHistory() {
-            val lines = updateHistoryStore.latest(5).map {
-                getString(R.string.update_history_line, it.timestamp, it.result, it.detail)
-            }
-            val content = if (lines.isEmpty()) {
-                getString(R.string.update_history_empty)
-            } else {
-                lines.joinToString(separator = "\n")
-            }
-            updateHistory.text = getString(R.string.update_history_prefix, content)
-        }
-
-        fun renderRulesPreview(rules: List<EncryptRule>) {
-            val lines = rules.mapIndexed { idx, rule ->
-                getString(
-                    R.string.encrypt_rule_line,
-                    idx + 1,
-                    rule.path,
-                    rule.encType,
-                    rule.encName.toString(),
-                    rule.enable.toString()
-                )
-            }
-            val content = if (lines.isEmpty()) {
-                getString(R.string.encrypt_rules_empty)
-            } else {
-                lines.joinToString(separator = "\n")
-            }
-            encryptRulesPreview.text = getString(R.string.encrypt_rules_preview, content)
-        }
-
-        fun fillForms(config: AppRuntimeConfig) {
-            cloudHostInput.setText(config.openlist.host)
-            cloudPortInput.setText(config.openlist.port.toString())
-            cloudHttpsSwitch.isChecked = config.openlist.https
-
-            tasksWebdavSwitch.isChecked = config.webdav.enable
-            tasksHeaderTimeoutInput.setText(config.webdav.headerTimeoutMs.toString())
-            tasksReadIdleInput.setText(config.webdav.readIdleTimeoutMs.toString())
-            tasksProbeBudgetInput.setText(config.runtime.probeBudgetListMs.toString())
-
-            encryptTypeInput.setText("aes-ctr")
-            encryptNameSwitch.isChecked = false
-            encryptEnableSwitch.isChecked = true
-            dashboardSummary.text = getString(R.string.page_dashboard_summary)
-            renderRulesPreview(config.encryptRules)
-            renderSettingsSummary()
-        }
-
-        fun saveConfig(next: AppRuntimeConfig, anchor: View) {
-            runCatching {
-                val result = configRepo.saveAtomically(next)
-                currentConfig = next
-                lastChangedCount = result.changedKeys.size
-                fillForms(currentConfig)
-                Snackbar.make(anchor, getString(R.string.save_success), Snackbar.LENGTH_SHORT).show()
-            }.onFailure { e ->
-                Snackbar.make(
-                    anchor,
-                    getString(R.string.save_failed_prefix, e.message ?: ""),
-                    Snackbar.LENGTH_LONG
-                ).show()
-            }
-        }
-
-        fun parsePositiveInt(input: TextInputEditText): Int? {
-            val raw = input.text?.toString()?.trim().orEmpty()
-            return raw.toIntOrNull()
-        }
-
-        fun parseRuleIndexOrNull(total: Int): Int? {
-            val raw = encryptRuleIndexInput.text?.toString()?.trim().orEmpty()
-            val oneBased = raw.toIntOrNull() ?: return null
-            if (oneBased < 1 || oneBased > total) return null
-            return oneBased - 1
-        }
-
-        fun buildRuleFromForm(): EncryptRule? {
-            val path = encryptPathInput.text?.toString()?.trim().orEmpty()
-            val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
-            val encType = encryptTypeInput.text?.toString()?.trim().orEmpty().ifBlank { "aes-ctr" }
-            if (path.isBlank() || password.isBlank()) {
-                return null
-            }
-            if (encType != "aes-ctr" && encType != "rc4md5") {
-                return null
-            }
-            return EncryptRule(
-                path = path,
-                password = password,
-                encType = encType,
-                encName = encryptNameSwitch.isChecked,
-                enable = encryptEnableSwitch.isChecked
-            )
-        }
-
-        fillForms(currentConfig)
-
-        fun render(menuId: Int) {
-            pageDashboard.visibility = if (menuId == R.id.nav_dashboard) View.VISIBLE else View.GONE
-            pageCloud.visibility = if (menuId == R.id.nav_cloud) View.VISIBLE else View.GONE
-            pageEncrypt.visibility = if (menuId == R.id.nav_encrypt) View.VISIBLE else View.GONE
-            pageTasks.visibility = if (menuId == R.id.nav_tasks) View.VISIBLE else View.GONE
-            pageSettings.visibility = if (menuId == R.id.nav_settings) View.VISIBLE else View.GONE
-        }
+            val errors = registry.validatePrimaryEditPages(fields)
+            require(errors.isEmpty()) { errors.joinToString() }
+            fields.size
+        }.getOrDefault(0)
 
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
         bottomNav.setOnItemSelectedListener {
-            render(it.itemId)
+            currentMenuId = it.itemId
+            switchFragment(it.itemId)
             true
         }
-        bottomNav.setOnItemReselectedListener {
-            if (it.itemId == R.id.nav_dashboard) {
-                Snackbar.make(
-                    bottomNav,
-                    getString(R.string.already_on_dashboard),
-                    Snackbar.LENGTH_SHORT
-                ).show()
-            }
+        if (savedInstanceState == null) {
+            switchFragment(currentMenuId)
         }
-        render(R.id.nav_dashboard)
+    }
 
-        findViewById<MaterialButton>(R.id.startRuntime).setOnClickListener { v ->
-            val intent = Intent(this, RuntimeService::class.java).apply {
-                action = RuntimeService.ACTION_START
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ContextCompat.startForegroundService(this, intent)
-            } else {
-                startService(intent)
-            }
-            Snackbar.make(v, getString(R.string.runtime_start_requested), Snackbar.LENGTH_SHORT).show()
+    private fun switchFragment(menuId: Int) {
+        val fragment = when (menuId) {
+            R.id.nav_dashboard -> DashboardFragment()
+            R.id.nav_cloud -> CloudFragment()
+            R.id.nav_encrypt -> EncryptFragment()
+            R.id.nav_tasks -> TasksFragment()
+            R.id.nav_settings -> SettingsFragment()
+            else -> DashboardFragment()
         }
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
+    }
 
-        findViewById<MaterialButton>(R.id.stopRuntime).setOnClickListener { v ->
-            val intent = Intent(this, RuntimeService::class.java).apply {
-                action = RuntimeService.ACTION_STOP
-            }
+    override fun currentConfig(): AppRuntimeConfig = currentConfig
+
+    override fun schemaFieldCount(): Int = schemaFields
+
+    override fun lastChangedCount(): Int = lastChanged
+
+    override fun previewChangedKeys(next: AppRuntimeConfig): List<String> {
+        return configRepo.diffKeys(currentConfig, next)
+    }
+
+    override fun applyConfig(next: AppRuntimeConfig): UiActionResult {
+        return runCatching {
+            val result = configRepo.saveAtomically(next)
+            currentConfig = next
+            lastChanged = result.changedKeys.size
+            UiActionResult(
+                ok = true,
+                message = getString(R.string.save_success),
+                changedKeys = result.changedKeys
+            )
+        }.getOrElse { e ->
+            UiActionResult(
+                ok = false,
+                message = getString(R.string.save_failed_prefix, e.message ?: "")
+            )
+        }
+    }
+
+    override fun latestUpdateHistory(limit: Int): List<org.openlist.encrypt.android.update.UpdateHistoryEntry> {
+        return updateHistoryStore.latest(limit)
+    }
+
+    override fun diagnostics(): List<DiagnosticItem> {
+        val validatorErrors = ConfigValidator.validate(currentConfig)
+        val historyCount = updateHistoryStore.latest(10).size
+        val snapshots = configRepo.listSnapshotNames(100).size
+        return listOf(
+            DiagnosticItem(
+                key = "config.validate",
+                ok = validatorErrors.isEmpty(),
+                message = if (validatorErrors.isEmpty()) "ok" else validatorErrors.joinToString("; ")
+            ),
+            DiagnosticItem(
+                key = "schema.field_count",
+                ok = schemaFields > 0,
+                message = schemaFields.toString()
+            ),
+            DiagnosticItem(
+                key = "update.history_entries",
+                ok = true,
+                message = historyCount.toString()
+            ),
+            DiagnosticItem(
+                key = "backup.snapshot_count",
+                ok = true,
+                message = snapshots.toString()
+            )
+        )
+    }
+
+    override fun snapshotNames(limit: Int): List<String> = configRepo.listSnapshotNames(limit)
+
+    override fun restoreSnapshot(snapshotName: String): UiActionResult {
+        return runCatching {
+            val saveResult = configRepo.restoreFromSnapshot(snapshotName)
+            currentConfig = configRepo.loadOrDefault()
+            lastChanged = saveResult.changedKeys.size
+            UiActionResult(
+                ok = true,
+                message = getString(R.string.restore_success, snapshotName),
+                changedKeys = saveResult.changedKeys
+            )
+        }.getOrElse { e ->
+            UiActionResult(
+                ok = false,
+                message = getString(R.string.restore_failed, e.message ?: "")
+            )
+        }
+    }
+
+    override fun requestRuntimeStart(): UiActionResult {
+        val intent = Intent(this, RuntimeService::class.java).apply {
+            action = RuntimeService.ACTION_START
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, intent)
+        } else {
             startService(intent)
-            Snackbar.make(v, getString(R.string.runtime_stop_requested), Snackbar.LENGTH_SHORT).show()
         }
+        return UiActionResult(ok = true, message = getString(R.string.runtime_start_requested))
+    }
 
-        cloudSaveButton.setOnClickListener { v ->
-            val host = cloudHostInput.text?.toString()?.trim().orEmpty().ifBlank { "127.0.0.1" }
-            val port = parsePositiveInt(cloudPortInput)
-            if (port == null) {
-                Snackbar.make(v, getString(R.string.invalid_number), Snackbar.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val next = currentConfig.copy(
-                openlist = currentConfig.openlist.copy(
-                    host = host,
-                    port = port,
-                    https = cloudHttpsSwitch.isChecked
-                )
-            )
-            saveConfig(next, v)
+    override fun requestRuntimeStop(): UiActionResult {
+        val intent = Intent(this, RuntimeService::class.java).apply {
+            action = RuntimeService.ACTION_STOP
         }
+        startService(intent)
+        return UiActionResult(ok = true, message = getString(R.string.runtime_stop_requested))
+    }
 
-        encryptAddRuleButton.setOnClickListener { v ->
-            val path = encryptPathInput.text?.toString()?.trim().orEmpty()
-            val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
-            val encType = encryptTypeInput.text?.toString()?.trim().orEmpty().ifBlank { "aes-ctr" }
-            val newRule = buildRuleFromForm()
-            if (newRule == null && (path.isBlank() || password.isBlank())) {
-                Snackbar.make(
-                    v,
-                    getString(R.string.save_failed_prefix, getString(R.string.encrypt_required_error)),
-                    Snackbar.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-            if (newRule == null && (encType != "aes-ctr" && encType != "rc4md5")) {
-                Snackbar.make(
-                    v,
-                    getString(R.string.save_failed_prefix, getString(R.string.encrypt_type_error)),
-                    Snackbar.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-            val next = currentConfig.copy(
-                encryptRules = currentConfig.encryptRules + newRule!!
-            )
-            saveConfig(next, v)
-        }
-
-        encryptUpdateRuleButton.setOnClickListener { v ->
-            val rules = currentConfig.encryptRules
-            val index = parseRuleIndexOrNull(rules.size)
-            if (index == null) {
-                Snackbar.make(v, getString(R.string.encrypt_index_error), Snackbar.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val updatedRule = buildRuleFromForm()
-            if (updatedRule == null) {
-                Snackbar.make(
-                    v,
-                    getString(R.string.save_failed_prefix, getString(R.string.encrypt_required_error)),
-                    Snackbar.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-
-            val nextRules = rules.toMutableList()
-            nextRules[index] = updatedRule
-            saveConfig(currentConfig.copy(encryptRules = nextRules), v)
-        }
-
-        encryptDeleteRuleButton.setOnClickListener { v ->
-            val rules = currentConfig.encryptRules
-            val index = parseRuleIndexOrNull(rules.size)
-            if (index == null) {
-                Snackbar.make(v, getString(R.string.encrypt_index_error), Snackbar.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val nextRules = rules.toMutableList().also { it.removeAt(index) }
-            saveConfig(currentConfig.copy(encryptRules = nextRules), v)
-        }
-
-        encryptClearRulesButton.setOnClickListener { v ->
-            val next = currentConfig.copy(encryptRules = emptyList())
-            saveConfig(next, v)
-        }
-
-        tasksSaveButton.setOnClickListener { v ->
-            val headerTimeout = parsePositiveInt(tasksHeaderTimeoutInput)
-            val readIdleTimeout = parsePositiveInt(tasksReadIdleInput)
-            val probeBudget = parsePositiveInt(tasksProbeBudgetInput)
-            if (headerTimeout == null || readIdleTimeout == null || probeBudget == null) {
-                Snackbar.make(v, getString(R.string.invalid_number), Snackbar.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val next = currentConfig.copy(
-                webdav = currentConfig.webdav.copy(
-                    enable = tasksWebdavSwitch.isChecked,
-                    headerTimeoutMs = headerTimeout,
-                    readIdleTimeoutMs = readIdleTimeout
-                ),
-                runtime = currentConfig.runtime.copy(
-                    probeBudgetListMs = probeBudget
-                )
-            )
-            saveConfig(next, v)
-        }
-
-        fun setUpdateButtonsEnabled(enabled: Boolean) {
-            checkUpdate.isEnabled = enabled
-            installUpdate.isEnabled = enabled
-        }
-
-        fun runUpdateJob(tag: String, block: () -> Unit) {
-            updateStatus.text = getString(R.string.update_status_running, tag)
-            setUpdateButtonsEnabled(false)
-            ioExecutor.execute {
-                block()
-                runOnUiThread {
-                    setUpdateButtonsEnabled(true)
-                    renderUpdateHistory()
-                }
-            }
-        }
-
-        checkUpdate.setOnClickListener {
-            runUpdateJob(getString(R.string.update_stage_check)) {
-                val result = updateCoordinator.checkLatest()
-                runOnUiThread {
-                    updateStatus.text = getString(
-                        R.string.update_status_result,
-                        result.stage,
-                        result.detail
+    override fun runUpdateCheck(onDone: (UiActionResult) -> Unit) {
+        ioExecutor.execute {
+            val result = updateCoordinator.checkLatest()
+            runOnUiThread {
+                onDone(
+                    UiActionResult(
+                        ok = result.ok,
+                        message = getString(R.string.update_status_result, result.stage, result.detail)
                     )
-                }
+                )
             }
         }
+    }
 
-        installUpdate.setOnClickListener {
-            runUpdateJob(getString(R.string.update_stage_install)) {
-                val result = updateCoordinator.checkDownloadAndInstall()
-                runOnUiThread {
-                    updateStatus.text = getString(
-                        R.string.update_status_result,
-                        result.stage,
-                        result.detail
+    override fun runUpdateInstall(onDone: (UiActionResult) -> Unit) {
+        ioExecutor.execute {
+            val result = updateCoordinator.checkDownloadAndInstall()
+            runOnUiThread {
+                onDone(
+                    UiActionResult(
+                        ok = result.ok,
+                        message = getString(R.string.update_status_result, result.stage, result.detail)
                     )
-                }
+                )
             }
         }
-
-        renderUpdateHistory()
     }
 
     override fun onDestroy() {

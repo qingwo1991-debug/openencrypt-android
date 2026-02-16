@@ -66,4 +66,38 @@
     <string name="update_history_prefix">最近更新记录：\n%1$s</string>
     <string name="update_history_empty">暂无更新记录</string>
     <string name="update_history_line">%1$s | %2$s | %3$s</string>
+    <string name="no_changes">没有检测到变更</string>
+    <string name="diff_preview_title">变更预览（确认后应用）</string>
+    <string name="confirm_apply">确认应用</string>
+    <string name="cancel_apply">取消</string>
+
+    <string name="config_overview_title">配置总览</string>
+    <string name="expert_mode_title">专家模式（显示全字段）</string>
+    <string name="expert_save">保存专家配置</string>
+    <string name="gateway_port_label">Gateway 端口</string>
+    <string name="parallel_concurrency_label">并行解密并发</string>
+    <string name="stream_buffer_label">流缓冲区（KB）</string>
+    <string name="upstream_timeout_label">上游超时（秒）</string>
+    <string name="probe_timeout_label">健康探测超时（秒）</string>
+    <string name="probe_list_budget_label">列表探测预算（ms）</string>
+    <string name="probe_stream_budget_label">流探测预算（ms）</string>
+    <string name="backoff_seconds_label">上游退避（秒）</string>
+    <string name="fast_fail_label">启用上游快速失败</string>
+    <string name="update_repo_label">更新仓库（owner/repo）</string>
+    <string name="update_auto_check_label">启动时自动检查更新</string>
+
+    <string name="diagnostics_title">诊断中心</string>
+    <string name="diagnostics_refresh">刷新诊断</string>
+    <string name="diagnostics_refreshed">诊断已刷新</string>
+
+    <string name="security_backup_title">安全与备份</string>
+    <string name="snapshot_refresh">刷新快照列表</string>
+    <string name="snapshot_empty">暂无配置快照</string>
+    <string name="snapshot_index_label">快照序号（从1开始）</string>
+    <string name="snapshot_index_error">快照序号无效</string>
+    <string name="snapshot_restore">恢复所选快照</string>
+    <string name="restore_confirm_title">确认恢复配置快照</string>
+    <string name="restore_confirm_body">将恢复：%1$s</string>
+    <string name="restore_success">恢复成功：%1$s</string>
+    <string name="restore_failed">恢复失败：%1$s</string>
 </resources>

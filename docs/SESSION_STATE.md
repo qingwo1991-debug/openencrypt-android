@@ -1,11 +1,11 @@
 # SESSION_STATE
 
 ## Session Meta
-- last_updated: 2026-02-16T12:40:00Z
+- last_updated: 2026-02-16T21:20:00Z
 - project: openencrypt-android
 - active_branch: main
-- last_commit: 013cc4d
-- last_ci_run: 22062668702 (completed success)
+- last_commit: de419c1
+- last_ci_run: 22063664239 (completed success)
 - mode: implementing
 - writeback_policy: event-driven + throttled (3 turns or 15 minutes)
 
@@ -27,12 +27,12 @@
 - [done] UI-001: 中文化与底部导航实际切页反馈。
 - [done] UI-002: 云/加密/任务可编辑表单与保存。
 - [done] UI-003: 加密规则新增/更新/删除/清空 + 预览。
-- [todo] UI-004: 单 Activity + 多 Fragment 架构重整（当前仍为单 Activity 大逻辑）。
-- [todo] CFG-001: Standard/Expert 模式与 schema 全字段映射 UI。
-- [todo] CFG-002: 保存流程增强为 validate -> diff -> confirm -> apply。
-- [todo] DIA-001: Diagnostics 页面（运行态/错误/恢复次数/健康聚合）。
-- [todo] SEC-001: Security & Backup 页面（快照列表/恢复）。
-- [todo] REL-003: main 每次 push 自动版本+1并发布 GitHub Releases（版本策略已确定）。
+- [done] UI-004: 单 Activity + 多 Fragment 架构重整（容器化导航已落地）。
+- [done] CFG-001: Standard/Expert 模式与 schema 全字段映射 UI（baseline 固定字段版）。
+- [done] CFG-002: 保存流程增强为 validate -> diff -> confirm -> apply。
+- [done] DIA-001: Diagnostics 页面（baseline 诊断聚合）。
+- [done] SEC-001: Security & Backup 页面（快照列表/恢复）。
+- [done] REL-003: main 每次 push 自动版本+1并发布 GitHub Releases。
 
 ## Progress Log (Append-Only)
 - 2026-02-16T10:59Z | 完成 release/ci 大改与更新中心链路 | commit:f950021
@@ -40,6 +40,8 @@
 - 2026-02-16T11:35Z | 切页改造 + 中文文案 | commit:3cac872 | run:22061154927 success
 - 2026-02-16T12:13Z | 三页可编辑表单（云/加密/任务） | commit:d8835c3 | run:22062291056 success
 - 2026-02-16T12:25Z | 加密规则更新/删除增强 | commit:013cc4d | run:22062668702 success
+- 2026-02-16T20:58Z | main push 自动版本+1与 release 发布 | commit:de419c1 | run:22063664239 success
+- 2026-02-16T21:20Z | UI Fragment 化 + 专家模式/诊断/备份恢复 + diff确认保存 | commit:pending
 
 ## Failures & Decisions
 ### Failures

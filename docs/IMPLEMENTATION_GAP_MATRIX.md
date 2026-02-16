@@ -18,12 +18,14 @@ Last updated: 2026-02-16
 - `Not Implemented` M2 full product UX and M4 hardening are pending.
 
 ## docs/04_android_ui_ia.md
-- `Partially Implemented` Main tabs and basic page summaries exist.
-- `Not Implemented` Full 10-page IA with dedicated screens is pending.
+- `Implemented (baseline)` Main tabs now use single Activity + multi Fragment container.
+- `Implemented (baseline)` Dashboard/Cloud/Encrypt/Tasks/Settings with sub-sections covering 10-page IA intent.
+- `Gap` Dedicated standalone routes for all sub-pages and richer UX polish are pending.
 
 ## docs/05_android_ui_fields.md
-- `Partially Implemented` Schema registry, duplicate editable check, and validator baseline exist.
-- `Not Implemented` Full editable forms (standard/expert), diff preview page, and full atomic apply UX.
+- `Implemented (baseline)` Schema registry + duplicate editable check + validator baseline.
+- `Implemented (this round)` Standard/Expert split UI and save flow `validate -> diff preview -> confirm -> apply atomically`.
+- `Gap` Full schema-driven dynamic form generation and risk-label surface are pending.
 
 ## docs/06_service_lifecycle.md
 - `Partially Implemented` State machine, start/stop sequencing, and recovery are implemented.
@@ -39,10 +41,12 @@ Last updated: 2026-02-16
 ## docs/09_update_release_design.md
 - `Partially Implemented` Stable release fetch, semver compare, ABI/checksum/signing verify logic exists.
 - `Implemented (this round)` In-app check/download/install workflow with update history persistence.
+- `Implemented (this round)` Settings page now exposes update center section in dedicated sub-page area.
 
 ## docs/10_ci_cd_github_actions.md
 - `Implemented (this round)` CI debug artifacts + preview release artifacts + release tag signing pipeline.
 - `Implemented (this round)` Cache-warning mitigation in CI (disable unstable action cache paths).
+- `Implemented (this round)` `main` push auto patch bump + tag + GitHub Release publishing.
 
 ## docs/11_test_acceptance.md
 - `Partially Implemented` Automated subset exists in `tools/acceptance-check.sh`.
@@ -52,7 +56,6 @@ Last updated: 2026-02-16
 - `Implemented` Secret model and release signing workflow are consistent with docs.
 
 ## Next execution order
-1. Full config UI screens (standard/expert, diff preview, atomic apply UX).
-2. Update center dedicated screen and richer failure remediation UX.
-3. Functional playback/WebDAV matrix + 72h real-device soak automation/reporting.
-4. ABI-tier performance tuning and release hardening pass for `v1.0.0`.
+1. Full schema-driven dynamic form renderer (replace current fixed-field expert form).
+2. Functional playback/WebDAV matrix + 72h real-device soak automation/reporting.
+3. ABI-tier performance tuning and release hardening pass for `v1.0.0`.

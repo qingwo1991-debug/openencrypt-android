@@ -53,6 +53,29 @@ class ConfigRepository(context: Context) {
         return ConfigSaveResult(changedKeys = changedKeys, backupPath = backupPath)
     }
 
+    fun diffKeys(previous: AppRuntimeConfig?, next: AppRuntimeConfig): List<String> {
+        return computeChangedKeys(previous, next)
+    }
+
+    fun listSnapshotNames(limit: Int = 20): List<String> {
+        if (!backupDir.exists()) return emptyList()
+        return backupDir.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.name.endsWith(".json") }
+            .sortedByDescending { it.name }
+            .take(limit)
+            .map { it.name }
+    }
+
+    fun restoreFromSnapshot(snapshotName: String): ConfigSaveResult {
+        val snapshot = File(backupDir, snapshotName)
+        require(snapshot.exists() && snapshot.isFile) {
+            "snapshot not found: $snapshotName"
+        }
+        val parsed = parse(snapshot.readText())
+        return saveAtomically(parsed)
+    }
+
     private fun parse(raw: String): AppRuntimeConfig {
         val root = JSONObject(raw)
         val openlist = root.optJSONObject("openlist") ?: JSONObject()
