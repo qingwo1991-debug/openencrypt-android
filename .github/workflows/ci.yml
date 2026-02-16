@@ -106,6 +106,10 @@ jobs:
             exit 1
           fi
           "$GRADLE_CMD" :app-android:lintDebug :app-android:testDebugUnitTest :app-android:assembleDebug
+      - name: Verify debug APK runtime assets
+        run: |
+          chmod +x tools/check-apk-runtime-assets.sh
+          tools/check-apk-runtime-assets.sh app-android/build/outputs/apk/debug/*.apk
       - name: Collect debug APKs
         if: success()
         run: |
@@ -194,6 +198,10 @@ jobs:
             exit 1
           fi
           "$GRADLE_CMD" :app-android:assembleRelease
+      - name: Verify preview APK runtime assets
+        run: |
+          chmod +x tools/check-apk-runtime-assets.sh
+          tools/check-apk-runtime-assets.sh app-android/build/outputs/apk/release/*.apk
       - name: Collect preview release artifacts
         run: |
           mkdir -p dist

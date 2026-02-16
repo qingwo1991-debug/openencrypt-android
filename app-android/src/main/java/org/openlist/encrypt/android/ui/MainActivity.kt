@@ -122,6 +122,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         val historyCount = updateHistoryStore.latest(10).size
         val snapshots = configRepo.listSnapshotNames(100).size
         val serviceState = RuntimeServiceStateStore.read(this)
+        val serviceDetail = RuntimeServiceStateStore.readDetail(this)
         val runtimeBins = runtimeBinaryStatus()
         return listOf(
             DiagnosticItem(
@@ -147,7 +148,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
             DiagnosticItem(
                 key = "runtime.service_state",
                 ok = serviceState == "running" || serviceState == "starting",
-                message = serviceState
+                message = listOf(serviceState, serviceDetail).filter { it.isNotBlank() }.joinToString(" | ")
             ),
             DiagnosticItem(
                 key = "runtime.binaries_ready",
@@ -254,12 +255,12 @@ class MainActivity : AppCompatActivity(), MainUiHost {
                 DiagnosticItem(
                     key = "runtime.openlist_healthz",
                     ok = openlistHealth == 200,
-                    message = "status=${openlistHealth ?: "n/a"}"
+                    message = healthMessage(openlistHealth, openlistTcp)
                 ),
                 DiagnosticItem(
                     key = "runtime.gateway_healthz",
                     ok = gatewayHealth == 200,
-                    message = "status=${gatewayHealth ?: "n/a"}"
+                    message = healthMessage(gatewayHealth, gatewayTcp)
                 ),
                 DiagnosticItem(
                     key = "webdav.enabled_config",
@@ -278,7 +279,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
 
     override fun runLoadLogs(onDone: (String) -> Unit) {
         ioExecutor.execute {
-            val content = logStore.mergedTail(300)
+            val content = logStore.mergedTail(1000)
             runOnUiThread { onDone(content) }
         }
     }
@@ -365,8 +366,13 @@ class MainActivity : AppCompatActivity(), MainUiHost {
             DiagnosticItem(
                 key = "runtime.binaries_ready",
                 ok = false,
-                message = "missing:${missing.joinToString(",")}"
+                message = "missing:${missing.joinToString(",")} at ${File(filesDir, "openencrypt/bin").absolutePath}"
             )
         }
+    }
+
+    private fun healthMessage(status: Int?, tcpReachable: Boolean): String {
+        if (status != null) return "status=$status"
+        return if (!tcpReachable) "status=n/a (tcp unreachable)" else "status=n/a (health timeout)"
     }
 }

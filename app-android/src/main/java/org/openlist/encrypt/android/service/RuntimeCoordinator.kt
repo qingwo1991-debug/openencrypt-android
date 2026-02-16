@@ -8,6 +8,8 @@ class RuntimeCoordinator(
 ) {
     @Volatile
     private var state: RuntimeState = RuntimeState.Idle
+    @Volatile
+    private var lastError: String = ""
 
     suspend fun startAll() {
         state = RuntimeState.Starting
@@ -15,6 +17,7 @@ class RuntimeCoordinator(
             startSequence()
         }.onFailure {
             state = RuntimeState.Degraded
+            lastError = it.message ?: "start sequence failed"
             recover()
         }
     }
@@ -26,6 +29,7 @@ class RuntimeCoordinator(
     }
 
     fun currentState(): RuntimeState = state
+    fun lastErrorDetail(): String = lastError
 
     private suspend fun startSequence() {
         processController.startGateway()
@@ -39,6 +43,7 @@ class RuntimeCoordinator(
         }
 
         state = RuntimeState.Running
+        lastError = ""
     }
 
     private suspend fun recover() {
@@ -49,7 +54,7 @@ class RuntimeCoordinator(
             runCatching {
                 startSequence()
                 return
-            }
+            }.onFailure { e -> lastError = e.message ?: "recover attempt failed" }
             backoffMs = (backoffMs * 2).coerceAtMost(20_000L)
         }
         state = RuntimeState.Degraded

@@ -37,10 +37,11 @@ class RuntimeLogStore(private val context: Context) {
         )
         return sections.joinToString(separator = "\n\n") { (name, file) ->
             val lines = if (!file.exists()) {
-                listOf("(empty)")
+                listOf("(empty: file missing ${file.absolutePath})")
             } else {
                 val all = file.readLines()
-                if (maxLinesPerFile == null) all else all.takeLast(maxLinesPerFile)
+                val picked = if (maxLinesPerFile == null) all else all.takeLast(maxLinesPerFile)
+                if (picked.isEmpty()) listOf("(empty file)") else picked
             }
             "===== $name =====\n" + lines.joinToString("\n")
         }

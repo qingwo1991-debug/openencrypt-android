@@ -134,6 +134,10 @@ jobs:
             exit 1
           fi
           "$GRADLE_CMD" :app-android:assembleRelease
+      - name: Verify release APK runtime assets
+        run: |
+          chmod +x tools/check-apk-runtime-assets.sh
+          tools/check-apk-runtime-assets.sh app-android/build/outputs/apk/release/*.apk
 
       - name: Collect artifacts
         env:

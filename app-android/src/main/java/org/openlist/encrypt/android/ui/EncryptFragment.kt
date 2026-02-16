@@ -12,6 +12,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
 import org.openlist.encrypt.android.R
 import org.openlist.encrypt.android.config.EncryptRule
+import org.openlist.encrypt.android.config.EncryptRulePathCodec
 
 class EncryptFragment : Fragment(R.layout.fragment_encrypt) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -51,19 +52,26 @@ class EncryptFragment : Fragment(R.layout.fragment_encrypt) {
             encryptRulesPreview.text = getString(R.string.encrypt_rules_preview, body)
         }
 
-        fun buildRuleFromForm(): EncryptRule? {
-            val path = encryptPathInput.text?.toString()?.trim().orEmpty()
+        fun buildRulesFromForm(): List<EncryptRule>? {
+            val pathRaw = encryptPathInput.text?.toString()?.trim().orEmpty()
             val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
             val encType = encryptTypeInput.text?.toString()?.trim().orEmpty().ifBlank { "aes-ctr" }
-            if (path.isBlank() || password.isBlank()) return null
+            if (pathRaw.isBlank() || password.isBlank()) return null
             if (!encryptTypes.contains(encType)) return null
-            return EncryptRule(
-                path = path,
-                password = password,
-                encType = encType,
-                encName = encryptNameSwitch.isChecked,
-                enable = encryptEnableSwitch.isChecked
-            )
+
+            val paths = runCatching { EncryptRulePathCodec.splitAndNormalize(pathRaw) }.getOrNull()
+                ?: return null
+            if (paths.isEmpty()) return null
+
+            return paths.map { p ->
+                EncryptRule(
+                    path = p,
+                    password = password,
+                    encType = encType,
+                    encName = encryptNameSwitch.isChecked,
+                    enable = encryptEnableSwitch.isChecked
+                )
+            }
         }
 
         fun applyNext(nextRules: List<EncryptRule>) {
@@ -90,16 +98,23 @@ class EncryptFragment : Fragment(R.layout.fragment_encrypt) {
         renderRules()
 
         view.findViewById<View>(R.id.encryptAddRuleButton).setOnClickListener {
-            val newRule = buildRuleFromForm()
-            if (newRule == null) {
+            val newRules = buildRulesFromForm()
+            if (newRules == null) {
+                val pathRaw = encryptPathInput.text?.toString()?.trim().orEmpty()
+                val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
+                val reason = if (pathRaw.isBlank() || password.isBlank()) {
+                    getString(R.string.encrypt_required_error)
+                } else {
+                    getString(R.string.encrypt_path_format_error)
+                }
                 Snackbar.make(
                     view,
-                    getString(R.string.save_failed_prefix, getString(R.string.encrypt_required_error)),
+                    getString(R.string.save_failed_prefix, reason),
                     Snackbar.LENGTH_SHORT
                 ).show()
                 return@setOnClickListener
             }
-            applyNext(host.currentConfig().encryptRules + newRule)
+            applyNext(host.currentConfig().encryptRules + newRules)
         }
 
         view.findViewById<View>(R.id.encryptUpdateRuleButton).setOnClickListener {
@@ -110,16 +125,24 @@ class EncryptFragment : Fragment(R.layout.fragment_encrypt) {
                 Snackbar.make(view, getString(R.string.encrypt_index_error), Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val updated = buildRuleFromForm()
-            if (updated == null) {
+            val updates = buildRulesFromForm()
+            if (updates == null) {
+                val pathRaw = encryptPathInput.text?.toString()?.trim().orEmpty()
+                val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
+                val reason = if (pathRaw.isBlank() || password.isBlank()) {
+                    getString(R.string.encrypt_required_error)
+                } else {
+                    getString(R.string.encrypt_path_format_error)
+                }
                 Snackbar.make(
                     view,
-                    getString(R.string.save_failed_prefix, getString(R.string.encrypt_required_error)),
+                    getString(R.string.save_failed_prefix, reason),
                     Snackbar.LENGTH_SHORT
                 ).show()
                 return@setOnClickListener
             }
-            rules[index] = updated
+            rules.removeAt(index)
+            rules.addAll(index, updates)
             applyNext(rules)
         }
 

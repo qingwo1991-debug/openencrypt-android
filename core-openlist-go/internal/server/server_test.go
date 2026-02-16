@@ -157,3 +157,57 @@ func TestProxyWebDavMethodMatrix(t *testing.T) {
 		})
 	}
 }
+
+func TestProxyInjectsEncryptRuleHeaders(t *testing.T) {
+	var gotOp string
+	var gotRulePath string
+	var gotEncType string
+	var gotEncName string
+	var gotPassword string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotOp = r.Header.Get("X-OpenEncrypt-Operation")
+		gotRulePath = r.Header.Get("X-OpenEncrypt-Rule-Path")
+		gotEncType = r.Header.Get("X-OpenEncrypt-Rule-Enc-Type")
+		gotEncName = r.Header.Get("X-OpenEncrypt-Rule-Enc-Name")
+		gotPassword = r.Header.Get("X-OpenEncrypt-Rule-Password")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	cfg := config.Config{
+		ListenAddr:                 "127.0.0.1:0",
+		GatewayBaseURL:             upstream.URL,
+		EncryptRulesJSON:           `[{"path":"/123/encrypt/*","password":"secret","enc_type":"aes-ctr","enc_name":true,"enable":true}]`,
+		HeaderTimeout:              1 * time.Second,
+		ReadIdleTimeout:            1 * time.Second,
+		ProbeBudgetList:            1 * time.Second,
+		ProbeBudgetStream:          1 * time.Second,
+		UpstreamBackoff:            1 * time.Second,
+		EnableUpstreamFastFail:     true,
+		EnableParallelDecrypt:      true,
+		ParallelDecryptThreshold:   1,
+		ParallelDecryptConcurrency: 2,
+	}
+	srv := New(cfg, log.New(io.Discard, "", 0))
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	req, err := http.NewRequest(http.MethodPut, ts.URL+"/123/encrypt/a.txt", strings.NewReader("x"))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status: %d", resp.StatusCode)
+	}
+	if gotOp != "encrypt" {
+		t.Fatalf("unexpected op: %q", gotOp)
+	}
+	if gotRulePath != "/123/encrypt/*" || gotEncType != "aes-ctr" || gotEncName != "true" || gotPassword != "secret" {
+		t.Fatalf("unexpected rule headers path=%q encType=%q encName=%q password=%q", gotRulePath, gotEncType, gotEncName, gotPassword)
+	}
+}

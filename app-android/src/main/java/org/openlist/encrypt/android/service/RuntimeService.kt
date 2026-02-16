@@ -28,11 +28,11 @@ class RuntimeService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action ?: ACTION_START) {
             ACTION_STOP -> {
-                RuntimeServiceStateStore.markStopping(applicationContext)
+                RuntimeServiceStateStore.markStopping(applicationContext, "stop requested")
                 logStore.appendApp("runtime.service", "stopping")
                 scope.launch {
                     coordinator.stopAll()
-                    RuntimeServiceStateStore.markStopped(applicationContext)
+                    RuntimeServiceStateStore.markStopped(applicationContext, "stopped by request")
                     logStore.appendApp("runtime.service", "stopped")
                     updateForeground("Runtime stopped")
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -46,16 +46,17 @@ class RuntimeService : Service() {
             }
 
             ACTION_START -> {
-                RuntimeServiceStateStore.markStarting(applicationContext)
+                RuntimeServiceStateStore.markStarting(applicationContext, "start requested")
                 logStore.appendApp("runtime.service", "starting")
                 startForeground(NOTIFICATION_ID, buildNotification("Starting runtime"))
                 scope.launch {
                     coordinator.startAll()
                     val state = coordinator.currentState()
                     if (state == RuntimeState.Running) {
-                        RuntimeServiceStateStore.markRunning(applicationContext)
+                        RuntimeServiceStateStore.markRunning(applicationContext, "gateway/openlist healthy")
                     } else {
-                        RuntimeServiceStateStore.markDegraded(applicationContext)
+                        val detail = coordinator.lastErrorDetail().ifBlank { "runtime degraded" }
+                        RuntimeServiceStateStore.markDegraded(applicationContext, detail)
                     }
                     logStore.appendApp("runtime.service", "state:$state")
                     updateForeground("Runtime: $state")
@@ -66,7 +67,7 @@ class RuntimeService : Service() {
     }
 
     override fun onDestroy() {
-        RuntimeServiceStateStore.markStopped(applicationContext)
+        RuntimeServiceStateStore.markStopped(applicationContext, "service destroyed")
         logStore.appendApp("runtime.service", "destroyed")
         scope.launch {
             coordinator.stopAll()

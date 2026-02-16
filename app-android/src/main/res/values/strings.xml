@@ -27,6 +27,7 @@
     <string name="save_failed_prefix">保存失败：%1$s</string>
     <string name="invalid_number">数值格式错误</string>
     <string name="encrypt_required_error">路径和密码不能为空</string>
+    <string name="encrypt_path_format_error">规则路径格式错误（支持逗号分隔，* 仅允许末尾 /*）</string>
     <string name="encrypt_type_error">加密类型只能是 aes-ctr 或 rc4md5</string>
 
     <string name="cloud_host_label">OpenList 主机</string>

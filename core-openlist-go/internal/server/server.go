@@ -14,12 +14,14 @@ import (
 	"github.com/openlist/openencrypt-android/core-openlist-go/internal/backoff"
 	"github.com/openlist/openencrypt-android/core-openlist-go/internal/config"
 	decryptor "github.com/openlist/openencrypt-android/core-openlist-go/internal/crypto"
+	"github.com/openlist/openencrypt-android/core-openlist-go/internal/rules"
 )
 
 type Server struct {
 	cfg       config.Config
 	gate      *backoff.Gate
 	decryptor *decryptor.Decryptor
+	matcher   *rules.Matcher
 	log       *log.Logger
 
 	generalClient *http.Client
@@ -40,10 +42,16 @@ func New(cfg config.Config, logger *log.Logger) *Server {
 		ResponseHeaderTimeout: cfg.HeaderTimeout,
 		IdleConnTimeout:       cfg.ReadIdleTimeout,
 	}
+	matcher, err := rules.FromJSON(cfg.EncryptRulesJSON)
+	if err != nil {
+		logger.Printf("invalid ENCRYPT_RULES_JSON, ignored: %v", err)
+		matcher = &rules.Matcher{}
+	}
 	return &Server{
 		cfg:       cfg,
 		gate:      &backoff.Gate{},
 		decryptor: decryptor.NewDecryptor(),
+		matcher:   matcher,
 		log:       logger,
 		generalClient: &http.Client{
 			Transport: tr,
@@ -70,10 +78,11 @@ func (s *Server) handlePing(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":                    "ok",
-		"gateway_base_url":          s.cfg.GatewayBaseURL,
-		"parallel_decrypt_enabled":  s.cfg.EnableParallelDecrypt,
+		"status":                     "ok",
+		"gateway_base_url":           s.cfg.GatewayBaseURL,
+		"parallel_decrypt_enabled":   s.cfg.EnableParallelDecrypt,
 		"parallel_decrypt_threshold": s.cfg.ParallelDecryptThreshold,
+		"encrypt_rules_count":        s.matcher.Count(),
 	})
 }
 
@@ -152,6 +161,7 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	copyHeaders(upReq.Header, r.Header)
+	s.applyEncryptRuleHeaders(upReq, r)
 
 	resp, err := client.Do(upReq)
 	if err != nil {
@@ -176,6 +186,30 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	s.log.Printf("< ts=%s method=%s route=%s status=%d dur_ms=%d bytes=%d", time.Now().Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), resp.StatusCode, time.Since(start).Milliseconds(), n)
 }
 
+func (s *Server) applyEncryptRuleHeaders(upReq *http.Request, originalReq *http.Request) {
+	rule, matched := s.matcher.Match(originalReq.URL.Path)
+	if !matched {
+		upReq.Header.Del("X-OpenEncrypt-Rule-Matched")
+		upReq.Header.Del("X-OpenEncrypt-Rule-Path")
+		upReq.Header.Del("X-OpenEncrypt-Rule-Enc-Type")
+		upReq.Header.Del("X-OpenEncrypt-Rule-Enc-Name")
+		upReq.Header.Del("X-OpenEncrypt-Rule-Password")
+		upReq.Header.Del("X-OpenEncrypt-Operation")
+		return
+	}
+
+	op := "decrypt"
+	if isWriteMethod(originalReq.Method) {
+		op = "encrypt"
+	}
+	upReq.Header.Set("X-OpenEncrypt-Rule-Matched", "true")
+	upReq.Header.Set("X-OpenEncrypt-Rule-Path", rule.Path)
+	upReq.Header.Set("X-OpenEncrypt-Rule-Enc-Type", rule.EncType)
+	upReq.Header.Set("X-OpenEncrypt-Rule-Enc-Name", strconvBool(rule.EncName))
+	upReq.Header.Set("X-OpenEncrypt-Rule-Password", rule.Password)
+	upReq.Header.Set("X-OpenEncrypt-Operation", op)
+}
+
 func copyHeaders(dst, src http.Header) {
 	for k, vals := range src {
 		dst.Del(k)
@@ -191,6 +225,15 @@ func isStreamReq(r *http.Request) bool {
 	}
 	p := strings.ToLower(r.URL.Path)
 	return strings.Contains(p, "/stream") || strings.Contains(p, "/download")
+}
+
+func isWriteMethod(method string) bool {
+	switch strings.ToUpper(method) {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, "MKCOL", "MOVE", "COPY", "PROPPATCH":
+		return true
+	default:
+		return false
+	}
 }
 
 func writeJSON(w http.ResponseWriter, code int, payload any) {
@@ -221,4 +264,11 @@ func strconv(v int) string {
 		buf[i] = '-'
 	}
 	return string(buf[i:])
+}
+
+func strconvBool(v bool) string {
+	if v {
+		return "true"
+	}
+	return "false"
 }

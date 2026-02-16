@@ -5,6 +5,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.openlist.encrypt.android.config.ConfigRepository
 import org.openlist.encrypt.android.diagnostics.RuntimeLogStore
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -37,6 +39,7 @@ class DefaultRuntimeProcessController(
         val env = mapOf(
             "LISTEN_ADDR" to "$host:$port",
             "GATEWAY_BASE_URL" to "http://127.0.0.1:${cfg.gateway.port}",
+            "ENCRYPT_RULES_JSON" to encodeEncryptRules(cfg.encryptRules.filter { it.enable }),
             "HEADER_TIMEOUT_MS" to cfg.webdav.headerTimeoutMs.toString(),
             "READ_IDLE_TIMEOUT_MS" to cfg.webdav.readIdleTimeoutMs.toString(),
             "PROBE_BUDGET_LIST_MS" to cfg.runtime.probeBudgetListMs.toString(),
@@ -118,6 +121,21 @@ class DefaultRuntimeProcessController(
             return File(byEnv)
         }
         return File(context.filesDir, "openencrypt/bin/$defaultName")
+    }
+
+    private fun encodeEncryptRules(rules: List<org.openlist.encrypt.android.config.EncryptRule>): String {
+        val arr = JSONArray()
+        rules.forEach { rule ->
+            arr.put(
+                JSONObject()
+                    .put("path", rule.path)
+                    .put("password", rule.password)
+                    .put("enc_type", rule.encType)
+                    .put("enc_name", rule.encName)
+                    .put("enable", rule.enable)
+            )
+        }
+        return arr.toString()
     }
 
     private fun stopProcess(p: Process) {

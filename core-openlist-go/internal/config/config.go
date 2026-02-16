@@ -11,6 +11,7 @@ import (
 type Config struct {
 	ListenAddr                 string
 	GatewayBaseURL             string
+	EncryptRulesJSON           string
 	HeaderTimeout              time.Duration
 	ReadIdleTimeout            time.Duration
 	ProbeBudgetList            time.Duration
@@ -26,6 +27,7 @@ func FromEnv() (Config, error) {
 	cfg := Config{
 		ListenAddr:                 getenv("LISTEN_ADDR", "127.0.0.1:5244"),
 		GatewayBaseURL:             strings.TrimRight(getenv("GATEWAY_BASE_URL", "http://127.0.0.1:5344"), "/"),
+		EncryptRulesJSON:           strings.TrimSpace(os.Getenv("ENCRYPT_RULES_JSON")),
 		HeaderTimeout:              ms(getenvInt("HEADER_TIMEOUT_MS", 5000)),
 		ReadIdleTimeout:            ms(getenvInt("READ_IDLE_TIMEOUT_MS", 12000)),
 		ProbeBudgetList:            ms(getenvInt("PROBE_BUDGET_LIST_MS", 1200)),

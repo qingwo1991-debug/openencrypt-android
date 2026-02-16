@@ -13,10 +13,18 @@ object ConfigValidator {
         val errors = mutableListOf<String>()
         val normalized = rules
             .filter { it.enable }
-            .mapIndexed { idx, r -> idx to normalizePath(r.path) }
+            .mapIndexedNotNull { idx, r ->
+                val parsed = runCatching { EncryptRulePathCodec.normalizeAndValidate(r.path) }.getOrNull()
+                if (parsed == null) {
+                    errors += "encrypt_rules[$idx].path invalid"
+                    null
+                } else {
+                    idx to parsed
+                }
+            }
 
         normalized.forEach { (idx, p) ->
-            if (p.isEmpty() || p == "/") {
+            if (p.isEmpty() || p == "/" || EncryptRulePathCodec.basePath(p) == "/") {
                 errors += "encrypt_rules[$idx].path invalid"
             }
         }
@@ -43,15 +51,10 @@ object ConfigValidator {
         return errors
     }
 
-    private fun normalizePath(path: String): String {
-        val s = path.trim()
-        if (s.isEmpty()) return ""
-        val withLeading = if (s.startsWith('/')) s else "/$s"
-        return withLeading.replace(Regex("/+"), "/").trimEnd('/')
-    }
-
     private fun isOverlap(a: String, b: String): Boolean {
-        if (a == b) return true
-        return a.startsWith("$b/") || b.startsWith("$a/")
+        val aBase = EncryptRulePathCodec.basePath(a)
+        val bBase = EncryptRulePathCodec.basePath(b)
+        if (aBase == bBase) return true
+        return aBase.startsWith("$bBase/") || bBase.startsWith("$aBase/")
     }
 }
