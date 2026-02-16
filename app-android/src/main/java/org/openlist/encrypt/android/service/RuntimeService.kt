@@ -29,7 +29,12 @@ class RuntimeService : Service() {
                 scope.launch {
                     coordinator.stopAll()
                     updateForeground("Runtime stopped")
-                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        stopForeground(true)
+                    }
                     stopSelf()
                 }
             }
