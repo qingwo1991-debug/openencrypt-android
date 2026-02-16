@@ -23,6 +23,33 @@
     <string name="runtime_start_requested">已请求启动运行时</string>
     <string name="runtime_stop_requested">已请求停止运行时</string>
     <string name="already_on_dashboard">当前已在仪表盘</string>
+    <string name="save_success">保存成功</string>
+    <string name="save_failed_prefix">保存失败：%1$s</string>
+    <string name="invalid_number">数值格式错误</string>
+    <string name="encrypt_required_error">路径和密码不能为空</string>
+    <string name="encrypt_type_error">加密类型只能是 aes-ctr 或 rc4md5</string>
+
+    <string name="cloud_host_label">OpenList 主机</string>
+    <string name="cloud_port_label">OpenList 端口</string>
+    <string name="cloud_https_label">启用 HTTPS</string>
+    <string name="cloud_save">保存云配置</string>
+
+    <string name="encrypt_rule_path_label">规则路径</string>
+    <string name="encrypt_rule_password_label">规则密码</string>
+    <string name="encrypt_rule_type_label">加密类型（aes-ctr/rc4md5）</string>
+    <string name="encrypt_rule_name_label">加密文件名</string>
+    <string name="encrypt_rule_enable_label">启用规则</string>
+    <string name="encrypt_add_rule">新增规则</string>
+    <string name="encrypt_clear_rules">清空规则</string>
+    <string name="encrypt_rules_preview">规则预览：\n%1$s</string>
+    <string name="encrypt_rules_empty">暂无规则</string>
+    <string name="encrypt_rule_line">[%1$d] %2$s | type=%3$s | name=%4$s | enable=%5$s</string>
+
+    <string name="tasks_webdav_enable_label">启用 WebDAV</string>
+    <string name="tasks_header_timeout_label">Header 超时（ms）</string>
+    <string name="tasks_read_idle_timeout_label">读取空闲超时（ms）</string>
+    <string name="tasks_probe_budget_label">列表探测预算（ms）</string>
+    <string name="tasks_save">保存任务网络配置</string>
 
     <string name="update_section_title">更新中心</string>
     <string name="update_check">检查更新</string>
