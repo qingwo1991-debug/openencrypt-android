@@ -8,6 +8,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: write
     steps:
@@ -19,6 +20,8 @@ jobs:
           java-version: "17"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.10.2"
       - name: Validate signing secrets
         run: |
           test -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}"
@@ -28,6 +31,15 @@ jobs:
       - name: Prepare keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+      - name: Validate keystore alias
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          keytool -list \
+            -keystore release.keystore \
+            -storepass "${ANDROID_KEYSTORE_PASSWORD}" \
+            -alias "${ANDROID_KEY_ALIAS}" >/dev/null
       - name: Build release APKs
         env:
           ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
@@ -37,10 +49,21 @@ jobs:
           BUILD_VERSION_NAME: ${{ github.ref_name }}
           BUILD_VERSION_CODE: ${{ github.run_number }}
         run: |
-          gradle :app-android:assembleRelease
+          if [[ -x ./gradlew ]]; then
+            GRADLE_CMD="./gradlew"
+          elif command -v gradle >/dev/null 2>&1; then
+            GRADLE_CMD="gradle"
+          else
+            echo "No gradle executable available. Commit Gradle Wrapper or install Gradle in runner."
+            exit 1
+          fi
+          "$GRADLE_CMD" :app-android:assembleRelease
       - name: Collect artifacts
         run: |
           mkdir -p dist
+          ls -l app-android/build/outputs/apk/release
+          compgen -G "app-android/build/outputs/apk/release/*arm64-v8a*.apk" >/dev/null
+          compgen -G "app-android/build/outputs/apk/release/*armeabi-v7a*.apk" >/dev/null
           cp app-android/build/outputs/apk/release/*arm64-v8a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-arm64-v8a.apk
           cp app-android/build/outputs/apk/release/*armeabi-v7a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-armeabi-v7a.apk
           sha256sum dist/*.apk > dist/checksums.txt

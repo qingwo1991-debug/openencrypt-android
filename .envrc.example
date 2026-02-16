@@ -1,0 +1,20 @@
+# Copy to .envrc and run: direnv allow
+
+# GitHub access for scripts (required)
+export GH_TOKEN="ghp_xxx"
+export OPENENCRYPT_GH_OWNER="your-github-owner"
+export OPENENCRYPT_GH_REPO="openencrypt-android"
+
+# Unattended CI watch behavior (optional)
+export CI_MAX_RETRIES="3"
+export CI_RETRY_BACKOFF_SECONDS="15"
+
+# Local release signing (optional, only if building signed release locally)
+# export ANDROID_KEYSTORE_PATH="$PWD/release.keystore"
+# export ANDROID_KEYSTORE_PASSWORD="change-me"
+# export ANDROID_KEY_ALIAS="openencrypt-release"
+# export ANDROID_KEY_PASSWORD="change-me"
+
+# Runtime binary overrides (optional)
+# export OPENLIST_BIN="$PWD/.tmp/openlist-runtime"
+# export GATEWAY_BIN="$PWD/.tmp/openencrypt-gateway"

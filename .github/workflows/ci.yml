@@ -5,6 +5,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   docs-and-schema:
     runs-on: ubuntu-latest
@@ -20,20 +24,31 @@ jobs:
 
   rust-core:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('core-encrypt-rs/Cargo.toml') != '' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Skip when Rust core is absent
+        id: rust-check
+        run: |
+          if [[ -f core-encrypt-rs/Cargo.toml ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Set up Rust
+        if: steps.rust-check.outputs.exists == 'true'
         uses: dtolnay/rust-toolchain@stable
       - name: Rust fmt check
+        if: steps.rust-check.outputs.exists == 'true'
         run: |
           cd core-encrypt-rs
           cargo fmt --all -- --check
       - name: Rust clippy
+        if: steps.rust-check.outputs.exists == 'true'
         run: |
           cd core-encrypt-rs
           cargo clippy -- -D warnings
       - name: Rust test
+        if: steps.rust-check.outputs.exists == 'true'
         run: |
           cd core-encrypt-rs
           cargo test
@@ -51,16 +66,39 @@ jobs:
         uses: android-actions/setup-android@v3
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.10.2"
       - name: Android lint + unit test + assembleDebug
         run: |
-          gradle :app-android:lintDebug :app-android:testDebugUnitTest :app-android:assembleDebug
+          if [[ -x ./gradlew ]]; then
+            GRADLE_CMD="./gradlew"
+          elif command -v gradle >/dev/null 2>&1; then
+            GRADLE_CMD="gradle"
+          else
+            echo "No gradle executable available. Commit Gradle Wrapper or install Gradle in runner."
+            exit 1
+          fi
+          "$GRADLE_CMD" :app-android:lintDebug :app-android:testDebugUnitTest :app-android:assembleDebug
 
   go-placeholder:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('core-openlist-go/go.mod') != '' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Skip when Go core is absent
+        id: go-check
+        run: |
+          if [[ -f core-openlist-go/go.mod ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up Go
+        if: steps.go-check.outputs.exists == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
       - name: Go vet/test
+        if: steps.go-check.outputs.exists == 'true'
         run: |
           cd core-openlist-go
           go vet ./...

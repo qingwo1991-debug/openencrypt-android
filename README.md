@@ -30,3 +30,7 @@ Read in order:
 4. `docs/03_roadmap.md`
 
 Then continue with UI, core, and release specs.
+
+## Release Ops Docs
+- `docs/10_ci_cd_github_actions.md` (中文/English)
+- `docs/12_signing_and_env_setup.md` (中文/English)

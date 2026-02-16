@@ -23,3 +23,9 @@ Cargo.lock
 # Local runtime artifacts
 .tmp/
 .soak/
+
+# Local env and signing material
+.envrc
+*.keystore
+*.jks
+release.keystore
