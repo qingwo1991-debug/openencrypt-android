@@ -3,7 +3,8 @@ package org.openlist.encrypt.android.config
 data class OpenListConfig(
     val host: String = "127.0.0.1",
     val port: Int = 5244,
-    val https: Boolean = false
+    val https: Boolean = false,
+    val h2c: Boolean = false
 )
 
 data class GatewayConfig(

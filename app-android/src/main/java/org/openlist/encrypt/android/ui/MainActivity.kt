@@ -14,8 +14,13 @@ import org.openlist.encrypt.android.config.ConfigValidator
 import org.openlist.encrypt.android.config.SchemaFieldRegistry
 import org.openlist.encrypt.android.diagnostics.DiagnosticItem
 import org.openlist.encrypt.android.service.RuntimeService
+import org.openlist.encrypt.android.service.RuntimeServiceStateStore
 import org.openlist.encrypt.android.update.UpdateCoordinator
 import org.openlist.encrypt.android.update.UpdateHistoryStore
+import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.URL
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity(), MainUiHost {
@@ -110,6 +115,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         val validatorErrors = ConfigValidator.validate(currentConfig)
         val historyCount = updateHistoryStore.latest(10).size
         val snapshots = configRepo.listSnapshotNames(100).size
+        val serviceState = RuntimeServiceStateStore.read(this)
         return listOf(
             DiagnosticItem(
                 key = "config.validate",
@@ -130,6 +136,11 @@ class MainActivity : AppCompatActivity(), MainUiHost {
                 key = "backup.snapshot_count",
                 ok = true,
                 message = snapshots.toString()
+            ),
+            DiagnosticItem(
+                key = "runtime.service_state",
+                ok = serviceState == "running" || serviceState == "starting",
+                message = serviceState
             )
         )
     }
@@ -202,6 +213,53 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         }
     }
 
+    override fun runRuntimeProbe(onDone: (List<DiagnosticItem>) -> Unit) {
+        ioExecutor.execute {
+            val openlistPort = currentConfig.openlist.port
+            val gatewayPort = currentConfig.gateway.port
+
+            val openlistTcp = tcpReachable("127.0.0.1", openlistPort)
+            val gatewayTcp = tcpReachable("127.0.0.1", gatewayPort)
+            val openlistHealth = httpStatus("http://127.0.0.1:$openlistPort/healthz")
+            val gatewayHealth = httpStatus("http://127.0.0.1:$gatewayPort/healthz")
+            val webdavEnabled = currentConfig.webdav.enable
+
+            val items = listOf(
+                DiagnosticItem(
+                    key = "runtime.openlist_tcp",
+                    ok = openlistTcp,
+                    message = "127.0.0.1:$openlistPort"
+                ),
+                DiagnosticItem(
+                    key = "runtime.gateway_tcp",
+                    ok = gatewayTcp,
+                    message = "127.0.0.1:$gatewayPort"
+                ),
+                DiagnosticItem(
+                    key = "runtime.openlist_healthz",
+                    ok = openlistHealth == 200,
+                    message = "status=${openlistHealth ?: "n/a"}"
+                ),
+                DiagnosticItem(
+                    key = "runtime.gateway_healthz",
+                    ok = gatewayHealth == 200,
+                    message = "status=${gatewayHealth ?: "n/a"}"
+                ),
+                DiagnosticItem(
+                    key = "webdav.enabled_config",
+                    ok = true,
+                    message = webdavEnabled.toString()
+                ),
+                DiagnosticItem(
+                    key = "webdav.gateway_ready",
+                    ok = !webdavEnabled || gatewayHealth == 200,
+                    message = if (webdavEnabled) "depends on gateway healthz=200" else "webdav disabled"
+                )
+            )
+            runOnUiThread { onDone(items) }
+        }
+    }
+
     override fun prettyJson(config: AppRuntimeConfig): String {
         return configRepo.toPrettyJson(config)
     }
@@ -221,5 +279,28 @@ class MainActivity : AppCompatActivity(), MainUiHost {
     override fun onDestroy() {
         ioExecutor.shutdownNow()
         super.onDestroy()
+    }
+
+    private fun tcpReachable(host: String, port: Int, timeoutMs: Int = 300): Boolean {
+        return runCatching {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(host, port), timeoutMs)
+                true
+            }
+        }.getOrDefault(false)
+    }
+
+    private fun httpStatus(url: String, timeoutMs: Int = 500): Int? {
+        return runCatching {
+            (URL(url).openConnection() as HttpURLConnection).run {
+                connectTimeout = timeoutMs
+                readTimeout = timeoutMs
+                requestMethod = "GET"
+                instanceFollowRedirects = false
+                val code = responseCode
+                disconnect()
+                code
+            }
+        }.getOrNull()
     }
 }

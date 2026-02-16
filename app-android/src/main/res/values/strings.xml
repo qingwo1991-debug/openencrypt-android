@@ -32,11 +32,12 @@
     <string name="cloud_host_label">OpenList 主机</string>
     <string name="cloud_port_label">OpenList 端口</string>
     <string name="cloud_https_label">启用 HTTPS</string>
+    <string name="cloud_h2c_label">启用 h2c（HTTP/2 明文）</string>
     <string name="cloud_save">保存云配置</string>
 
     <string name="encrypt_rule_path_label">规则路径</string>
     <string name="encrypt_rule_password_label">规则密码</string>
-    <string name="encrypt_rule_type_label">加密类型（aes-ctr/rc4md5）</string>
+    <string name="encrypt_rule_type_label">加密类型（下拉选择）</string>
     <string name="encrypt_rule_name_label">加密文件名</string>
     <string name="encrypt_rule_enable_label">启用规则</string>
     <string name="encrypt_rule_index_label">规则序号（从1开始）</string>

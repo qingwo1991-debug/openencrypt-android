@@ -64,11 +64,18 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         }
 
         fun renderDiagnostics() {
-            val lines = host.diagnostics().map {
+            val baseLines = host.diagnostics().map {
                 val status = if (it.ok) "OK" else "FAIL"
                 "$status | ${it.key} | ${it.message}"
             }
-            diagnosticsView.text = lines.joinToString("\n")
+            diagnosticsView.text = (baseLines + "RUN | runtime.probe | probing...").joinToString("\n")
+            host.runRuntimeProbe { probeItems ->
+                val probeLines = probeItems.map {
+                    val status = if (it.ok) "OK" else "FAIL"
+                    "$status | ${it.key} | ${it.message}"
+                }
+                diagnosticsView.text = (baseLines + probeLines).joinToString("\n")
+            }
         }
 
         fun renderUpdateHistory() {

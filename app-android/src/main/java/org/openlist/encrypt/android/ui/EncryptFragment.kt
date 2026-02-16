@@ -2,9 +2,11 @@ package org.openlist.encrypt.android.ui
 
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
@@ -18,11 +20,20 @@ class EncryptFragment : Fragment(R.layout.fragment_encrypt) {
 
         val encryptPathInput = view.findViewById<TextInputEditText>(R.id.encryptPathInput)
         val encryptPasswordInput = view.findViewById<TextInputEditText>(R.id.encryptPasswordInput)
-        val encryptTypeInput = view.findViewById<TextInputEditText>(R.id.encryptTypeInput)
+        val encryptTypeInput = view.findViewById<MaterialAutoCompleteTextView>(R.id.encryptTypeInput)
         val encryptNameSwitch = view.findViewById<SwitchMaterial>(R.id.encryptNameSwitch)
         val encryptEnableSwitch = view.findViewById<SwitchMaterial>(R.id.encryptEnableSwitch)
         val encryptRuleIndexInput = view.findViewById<TextInputEditText>(R.id.encryptRuleIndexInput)
         val encryptRulesPreview = view.findViewById<MaterialTextView>(R.id.encryptRulesPreview)
+
+        val encryptTypes = listOf("aes-ctr", "rc4md5")
+        encryptTypeInput.setAdapter(
+            ArrayAdapter(
+                requireContext(),
+                android.R.layout.simple_list_item_1,
+                encryptTypes
+            )
+        )
 
         fun renderRules() {
             val rules = host.currentConfig().encryptRules
@@ -45,7 +56,7 @@ class EncryptFragment : Fragment(R.layout.fragment_encrypt) {
             val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
             val encType = encryptTypeInput.text?.toString()?.trim().orEmpty().ifBlank { "aes-ctr" }
             if (path.isBlank() || password.isBlank()) return null
-            if (encType != "aes-ctr" && encType != "rc4md5") return null
+            if (!encryptTypes.contains(encType)) return null
             return EncryptRule(
                 path = path,
                 password = password,
@@ -74,7 +85,7 @@ class EncryptFragment : Fragment(R.layout.fragment_encrypt) {
                 .show()
         }
 
-        encryptTypeInput.setText("aes-ctr")
+        encryptTypeInput.setText("aes-ctr", false)
         encryptEnableSwitch.isChecked = true
         renderRules()
 

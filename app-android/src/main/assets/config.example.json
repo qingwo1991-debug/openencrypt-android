@@ -2,7 +2,8 @@
   "openlist": {
     "host": "127.0.0.1",
     "port": 5244,
-    "https": false
+    "https": false,
+    "h2c": false
   },
   "gateway": {
     "port": 5344,

@@ -26,8 +26,10 @@ class RuntimeService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action ?: ACTION_START) {
             ACTION_STOP -> {
+                RuntimeServiceStateStore.markStopping(applicationContext)
                 scope.launch {
                     coordinator.stopAll()
+                    RuntimeServiceStateStore.markStopped(applicationContext)
                     updateForeground("Runtime stopped")
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -40,9 +42,11 @@ class RuntimeService : Service() {
             }
 
             ACTION_START -> {
+                RuntimeServiceStateStore.markStarting(applicationContext)
                 startForeground(NOTIFICATION_ID, buildNotification("Starting runtime"))
                 scope.launch {
                     coordinator.startAll()
+                    RuntimeServiceStateStore.markRunning(applicationContext)
                     updateForeground("Runtime: ${coordinator.currentState()}")
                 }
             }
@@ -51,6 +55,7 @@ class RuntimeService : Service() {
     }
 
     override fun onDestroy() {
+        RuntimeServiceStateStore.markStopped(applicationContext)
         scope.launch {
             coordinator.stopAll()
         }

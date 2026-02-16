@@ -112,7 +112,8 @@ class ConfigRepository(context: Context) {
             openlist = OpenListConfig(
                 host = openlist.optString("host", "127.0.0.1"),
                 port = openlist.optInt("port", 5244),
-                https = openlist.optBoolean("https", false)
+                https = openlist.optBoolean("https", false),
+                h2c = openlist.optBoolean("h2c", false)
             ),
             gateway = GatewayConfig(
                 port = gateway.optInt("port", 5344),
@@ -163,6 +164,7 @@ class ConfigRepository(context: Context) {
                     .put("host", config.openlist.host)
                     .put("port", config.openlist.port)
                     .put("https", config.openlist.https)
+                    .put("h2c", config.openlist.h2c)
             )
             .put(
                 "gateway",
@@ -216,6 +218,7 @@ class ConfigRepository(context: Context) {
         result["openlist.host"] = config.openlist.host
         result["openlist.port"] = config.openlist.port.toString()
         result["openlist.https"] = config.openlist.https.toString()
+        result["openlist.h2c"] = config.openlist.h2c.toString()
         result["gateway.port"] = config.gateway.port.toString()
         result["gateway.enable_parallel_decrypt"] = config.gateway.enableParallelDecrypt.toString()
         result["gateway.parallel_decrypt_concurrency"] = config.gateway.parallelDecryptConcurrency.toString()

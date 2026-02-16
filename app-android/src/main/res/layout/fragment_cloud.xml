@@ -57,6 +57,15 @@
             android:paddingEnd="16dp"
             android:text="@string/cloud_https_label" />
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/cloudH2cSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="16dp"
+            android:text="@string/cloud_h2c_label" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/cloudSaveButton"
             style="@style/Widget.Material3.Button"

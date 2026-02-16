@@ -37,6 +37,9 @@ object ConfigValidator {
         val errors = mutableListOf<String>()
         errors += validatePorts(config.openlist.port, config.gateway.port)
         errors += validateEncryptRules(config.encryptRules)
+        if (config.openlist.https && config.openlist.h2c) {
+            errors += "openlist.https conflicts with openlist.h2c"
+        }
         return errors
     }
 

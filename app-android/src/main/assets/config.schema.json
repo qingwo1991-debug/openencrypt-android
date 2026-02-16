@@ -8,11 +8,12 @@
   "properties": {
     "openlist": {
       "type": "object",
-      "required": ["host", "port", "https"],
+      "required": ["host", "port", "https", "h2c"],
       "properties": {
         "host": {"type": "string", "default": "127.0.0.1", "x-level": "standard"},
         "port": {"type": "integer", "minimum": 1, "maximum": 65535, "default": 5244, "x-level": "standard"},
-        "https": {"type": "boolean", "default": false, "x-level": "standard"}
+        "https": {"type": "boolean", "default": false, "x-level": "standard"},
+        "h2c": {"type": "boolean", "default": false, "x-level": "standard"}
       }
     },
     "gateway": {

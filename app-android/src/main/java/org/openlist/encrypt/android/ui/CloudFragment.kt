@@ -18,10 +18,12 @@ class CloudFragment : Fragment(R.layout.fragment_cloud) {
         val cloudHostInput = view.findViewById<TextInputEditText>(R.id.cloudHostInput)
         val cloudPortInput = view.findViewById<TextInputEditText>(R.id.cloudPortInput)
         val cloudHttpsSwitch = view.findViewById<SwitchMaterial>(R.id.cloudHttpsSwitch)
+        val cloudH2cSwitch = view.findViewById<SwitchMaterial>(R.id.cloudH2cSwitch)
 
         cloudHostInput.setText(config.openlist.host)
         cloudPortInput.setText(config.openlist.port.toString())
         cloudHttpsSwitch.isChecked = config.openlist.https
+        cloudH2cSwitch.isChecked = config.openlist.h2c
 
         view.findViewById<View>(R.id.cloudSaveButton).setOnClickListener {
             val hostValue = cloudHostInput.text?.toString()?.trim().orEmpty().ifBlank { "127.0.0.1" }
@@ -34,7 +36,8 @@ class CloudFragment : Fragment(R.layout.fragment_cloud) {
                 openlist = host.currentConfig().openlist.copy(
                     host = hostValue,
                     port = port,
-                    https = cloudHttpsSwitch.isChecked
+                    https = cloudHttpsSwitch.isChecked,
+                    h2c = cloudH2cSwitch.isChecked
                 )
             )
             val diff = host.previewChangedKeys(next)
