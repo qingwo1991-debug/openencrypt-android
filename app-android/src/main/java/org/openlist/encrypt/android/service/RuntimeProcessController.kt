@@ -29,7 +29,7 @@ class DefaultRuntimeProcessController(
         val host = cfg.openlist.host
         val port = cfg.openlist.port
 
-        if (openListProcess?.isAlive == true) return@withContext
+        if (isProcessRunning(openListProcess)) return@withContext
 
         val bin = resolveBinary("OPENLIST_BIN", "openlist-runtime")
         val env = mapOf(
@@ -55,7 +55,7 @@ class DefaultRuntimeProcessController(
 
     override suspend fun startGateway() = withContext(Dispatchers.IO) {
         val cfg = configRepo.loadOrDefault()
-        if (gatewayProcess?.isAlive == true) return@withContext
+        if (isProcessRunning(gatewayProcess)) return@withContext
 
         val bin = resolveBinary("GATEWAY_BIN", "openencrypt-gateway")
         val dbPath = File(context.filesDir, "openencrypt/data/openencrypt.sqlite3").absolutePath
@@ -106,11 +106,21 @@ class DefaultRuntimeProcessController(
     }
 
     private fun stopProcess(p: Process) {
-        if (!p.isAlive) return
+        if (!isProcessRunning(p)) return
         p.destroy()
         if (!p.waitFor(1500, TimeUnit.MILLISECONDS)) {
             p.destroyForcibly()
             p.waitFor(1000, TimeUnit.MILLISECONDS)
+        }
+    }
+
+    private fun isProcessRunning(p: Process?): Boolean {
+        if (p == null) return false
+        return try {
+            p.exitValue()
+            false
+        } catch (_: IllegalThreadStateException) {
+            true
         }
     }
 
