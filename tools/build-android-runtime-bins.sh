@@ -36,14 +36,16 @@ mkdir -p "$OUT_ROOT/arm64-v8a" "$OUT_ROOT/armeabi-v7a"
 echo "[1/4] build openlist-runtime (Go, arm64-v8a)"
 (
   cd "$ROOT/core-openlist-go"
-  CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+  CC="$TOOLCHAIN/aarch64-linux-android21-clang" \
+  CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
     go build -trimpath -ldflags="-s -w" -o "$OUT_ROOT/arm64-v8a/openlist-runtime" ./cmd/openlist-runtime
 )
 
 echo "[2/4] build openlist-runtime (Go, armeabi-v7a)"
 (
   cd "$ROOT/core-openlist-go"
-  CGO_ENABLED=0 GOOS=android GOARCH=arm GOARM=7 \
+  CC="$TOOLCHAIN/armv7a-linux-androideabi21-clang" \
+  CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 \
     go build -trimpath -ldflags="-s -w" -o "$OUT_ROOT/armeabi-v7a/openlist-runtime" ./cmd/openlist-runtime
 )
 
