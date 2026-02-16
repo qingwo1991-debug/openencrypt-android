@@ -3,6 +3,7 @@ package org.openlist.encrypt.android.ui
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.appbar.MaterialToolbar
@@ -26,8 +27,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        val pageTitle = findViewById<MaterialTextView>(R.id.pageTitle)
-        val pageSummary = findViewById<MaterialTextView>(R.id.pageSummary)
+        val pageDashboard = findViewById<View>(R.id.pageDashboard)
+        val pageCloud = findViewById<MaterialTextView>(R.id.pageCloud)
+        val pageEncrypt = findViewById<MaterialTextView>(R.id.pageEncrypt)
+        val pageTasks = findViewById<MaterialTextView>(R.id.pageTasks)
+        val pageSettings = findViewById<View>(R.id.pageSettings)
+        val dashboardSummary = findViewById<MaterialTextView>(R.id.dashboardSummary)
+        val settingsSummary = findViewById<MaterialTextView>(R.id.settingsSummary)
         val updateStatus = findViewById<MaterialTextView>(R.id.updateStatus)
         val updateHistory = findViewById<MaterialTextView>(R.id.updateHistory)
         val checkUpdate = findViewById<MaterialButton>(R.id.checkUpdate)
@@ -64,46 +70,61 @@ class MainActivity : AppCompatActivity() {
             updateHistory.text = getString(R.string.update_history_prefix, content)
         }
 
-        val pages = mapOf(
-            R.id.nav_dashboard to (
-                getString(R.string.nav_dashboard) to
-                    getString(R.string.page_dashboard_summary)
-                ),
-            R.id.nav_cloud to (
-                getString(R.string.nav_cloud) to
-                    getString(R.string.page_cloud_summary, loaded.openlist.host, loaded.openlist.port)
-                ),
-            R.id.nav_encrypt to (
-                getString(R.string.nav_encrypt) to
-                    getString(R.string.page_encrypt_summary, loaded.encryptRules.size, loaded.gateway.port)
-                ),
-            R.id.nav_tasks to (
-                getString(R.string.nav_tasks) to
-                    getString(
-                        R.string.page_tasks_summary,
-                        loaded.webdav.enable.toString(),
-                        loaded.runtime.probeBudgetListMs
-                    )
-                ),
-            R.id.nav_settings to (
-                getString(R.string.nav_settings) to
-                    getString(
-                        R.string.page_settings_summary,
-                        schemaFields.size,
-                        saveResult?.changedKeys?.size ?: 0
-                    )
+        dashboardSummary.text = getString(R.string.page_dashboard_summary)
+        pageCloud.text = buildString {
+            append(getString(R.string.page_cloud_title))
+            append("\n\n")
+            append(getString(R.string.page_cloud_summary, loaded.openlist.host, loaded.openlist.port))
+        }
+        pageEncrypt.text = buildString {
+            append(getString(R.string.page_encrypt_title))
+            append("\n\n")
+            append(getString(R.string.page_encrypt_summary, loaded.encryptRules.size, loaded.gateway.port))
+        }
+        pageTasks.text = buildString {
+            append(getString(R.string.page_tasks_title))
+            append("\n\n")
+            append(
+                getString(
+                    R.string.page_tasks_summary,
+                    loaded.webdav.enable.toString(),
+                    loaded.runtime.probeBudgetListMs
                 )
-        )
-
-        fun render(menuId: Int) {
-            val entry = pages.getValue(menuId)
-            pageTitle.text = entry.first
-            pageSummary.text = entry.second
+            )
+        }
+        settingsSummary.text = buildString {
+            append(getString(R.string.page_settings_title))
+            append("\n\n")
+            append(
+                getString(
+                    R.string.page_settings_summary,
+                    schemaFields.size,
+                    saveResult?.changedKeys?.size ?: 0
+                )
+            )
         }
 
-        findViewById<BottomNavigationView>(R.id.bottomNav).setOnItemSelectedListener {
+        fun render(menuId: Int) {
+            pageDashboard.visibility = if (menuId == R.id.nav_dashboard) View.VISIBLE else View.GONE
+            pageCloud.visibility = if (menuId == R.id.nav_cloud) View.VISIBLE else View.GONE
+            pageEncrypt.visibility = if (menuId == R.id.nav_encrypt) View.VISIBLE else View.GONE
+            pageTasks.visibility = if (menuId == R.id.nav_tasks) View.VISIBLE else View.GONE
+            pageSettings.visibility = if (menuId == R.id.nav_settings) View.VISIBLE else View.GONE
+        }
+
+        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
+        bottomNav.setOnItemSelectedListener {
             render(it.itemId)
             true
+        }
+        bottomNav.setOnItemReselectedListener {
+            if (it.itemId == R.id.nav_dashboard) {
+                Snackbar.make(
+                    bottomNav,
+                    getString(R.string.already_on_dashboard),
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
         }
         render(R.id.nav_dashboard)
 
