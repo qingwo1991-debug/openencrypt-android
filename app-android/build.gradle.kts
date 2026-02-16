@@ -1,6 +1,87 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+val runtimeAbis = listOf("arm64-v8a", "armeabi-v7a")
+val runtimeNames = listOf("openlist-runtime", "openencrypt-gateway")
+val runtimeAssetRoot = file("src/main/assets/bin")
+
+fun pickFirstExisting(candidates: List<File>): File? = candidates.firstOrNull { it.isFile }
+
+val syncAndroidRuntimeBinaries by tasks.registering {
+    group = "build setup"
+    description = "Sync Android runtime binaries into app assets."
+    doLast {
+        delete(runtimeAssetRoot)
+        val customRoot = providers.environmentVariable("RUNTIME_BIN_ROOT").orNull
+            ?.takeIf { it.isNotBlank() }
+            ?.let { File(it) }
+        val repoRoot = rootDir
+
+        runtimeAbis.forEach { abi ->
+            val outDir = File(runtimeAssetRoot, abi).apply { mkdirs() }
+            val openListSrc = pickFirstExisting(
+                listOfNotNull(
+                    customRoot?.let { File(it, "$abi/openlist-runtime") },
+                    File(repoRoot, "core-openlist-go/target/android/$abi/openlist-runtime")
+                )
+            )
+            val gatewaySrc = pickFirstExisting(
+                listOfNotNull(
+                    customRoot?.let { File(it, "$abi/openencrypt-gateway") },
+                    File(repoRoot, "core-encrypt-rs/target/android/$abi/openencrypt-gateway")
+                )
+            )
+            if (openListSrc != null) {
+                copy {
+                    from(openListSrc)
+                    into(outDir)
+                }
+            }
+            if (gatewaySrc != null) {
+                copy {
+                    from(gatewaySrc)
+                    into(outDir)
+                }
+            }
+        }
+    }
+}
+
+val verifyAndroidRuntimeBinaries by tasks.registering {
+    group = "verification"
+    description = "Fail build when required Android runtime binaries are missing from assets."
+    dependsOn(syncAndroidRuntimeBinaries)
+    doLast {
+        val missing = mutableListOf<String>()
+        runtimeAbis.forEach { abi ->
+            runtimeNames.forEach { name ->
+                val file = File(runtimeAssetRoot, "$abi/$name")
+                if (!file.isFile) {
+                    missing += "src/main/assets/bin/$abi/$name"
+                }
+            }
+        }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("Missing Android runtime binaries:")
+                    missing.forEach { appendLine("- $it") }
+                    appendLine("Provide binaries via one of:")
+                    appendLine("1) RUNTIME_BIN_ROOT=<dir> with <dir>/<abi>/<binary>")
+                    appendLine("2) core-openlist-go/target/android/<abi>/openlist-runtime")
+                    appendLine("3) core-encrypt-rs/target/android/<abi>/openencrypt-gateway")
+                }
+            )
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(verifyAndroidRuntimeBinaries)
 }
 
 android {

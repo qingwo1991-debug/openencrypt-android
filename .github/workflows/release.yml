@@ -84,6 +84,11 @@ jobs:
             -storepass "${ANDROID_KEYSTORE_PASSWORD}" \
             -alias "${ANDROID_KEY_ALIAS}" >/dev/null
 
+      - name: Verify Android runtime binaries
+        run: |
+          chmod +x tools/check-android-runtime-bins.sh
+          tools/check-android-runtime-bins.sh
+
       - name: Build release APKs
         env:
           ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore

@@ -18,7 +18,7 @@ Language: [中文](#中文) | [English](#english)
 
 ### Acceptance CI（手动）
 - 工作流：`Acceptance`
-- 可传入 `soak_minutes`（`4320` 即 72h）与探测间隔
+- 可传入 `soak_minutes` 与探测间隔；GitHub hosted runner 会将 `soak_minutes` 限制在 60 分钟以内
 - 输出：Playback/WebDAV 矩阵与 Soak 报告（上传为 artifact）
 
 ### 必需 Secrets（production Environment）
@@ -47,8 +47,10 @@ Language: [中文](#中文) | [English](#english)
 
 ### Acceptance CI (manual)
 - Workflow: `Acceptance`
-- Inputs: `soak_minutes` (`4320` for 72h) and probe interval
+- Inputs: `soak_minutes` (hosted runner capped at 60) and probe interval
 - Outputs: playback/WebDAV matrix and soak reports uploaded as artifacts
+- 72h soak is executed on real-device/self-hosted environment, not on GitHub hosted runner.
+- Android CI/Release builds run `tools/check-android-runtime-bins.sh` before Gradle to fail fast when runtime binaries are missing.
 
 ### Required Secrets (production Environment)
 - `ANDROID_KEYSTORE_BASE64`

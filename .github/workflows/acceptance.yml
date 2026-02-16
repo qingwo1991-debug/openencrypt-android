@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       soak_minutes:
-        description: "Runtime soak duration in minutes (72h=4320)"
+        description: "Hosted-runner soak duration in minutes (max 60; 72h must run on real device/self-hosted)"
         required: true
-        default: "10"
+        default: "20"
       soak_interval_seconds:
         description: "Soak probe interval seconds"
         required: true
@@ -15,7 +15,7 @@ on:
 jobs:
   matrix-and-soak:
     runs-on: ubuntu-latest
-    timeout-minutes: 5000
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -33,10 +33,38 @@ jobs:
           chmod +x tools/playback-webdav-matrix-check.sh
           tools/playback-webdav-matrix-check.sh
 
+      - name: Resolve hosted soak duration
+        id: soak
+        shell: bash
+        run: |
+          set -euo pipefail
+          soak="${{ github.event.inputs.soak_minutes }}"
+          interval="${{ github.event.inputs.soak_interval_seconds }}"
+          if [[ ! "$soak" =~ ^[0-9]+$ ]]; then
+            echo "invalid soak_minutes: $soak"
+            exit 1
+          fi
+          if [[ ! "$interval" =~ ^[0-9]+$ ]]; then
+            echo "invalid soak_interval_seconds: $interval"
+            exit 1
+          fi
+          if (( soak > 60 )); then
+            echo "::warning::soak_minutes=$soak exceeds hosted-runner budget; clamped to 60."
+            soak=60
+          fi
+          if (( soak < 1 )); then
+            soak=1
+          fi
+          if (( interval < 5 )); then
+            interval=5
+          fi
+          echo "minutes=$soak" >> "$GITHUB_OUTPUT"
+          echo "interval=$interval" >> "$GITHUB_OUTPUT"
+
       - name: Runtime soak check
         run: |
           chmod +x tools/runtime-soak-check.sh tools/soak-report.sh
-          tools/runtime-soak-check.sh "${{ github.event.inputs.soak_minutes }}" "${{ github.event.inputs.soak_interval_seconds }}"
+          tools/runtime-soak-check.sh "${{ steps.soak.outputs.minutes }}" "${{ steps.soak.outputs.interval }}"
 
       - name: Upload acceptance reports
         if: always()
@@ -44,4 +72,5 @@ jobs:
         with:
           name: acceptance-reports-${{ github.run_number }}
           path: .reports/*.md
+          include-hidden-files: true
           if-no-files-found: warn

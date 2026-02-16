@@ -1,8 +1,12 @@
 package org.openlist.encrypt.android.ui
 
+import android.net.Uri
 import android.os.Bundle
+import android.text.method.ScrollingMovementMethod
+import android.view.MotionEvent
 import android.view.View
 import android.widget.RadioGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -11,8 +15,29 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
 import org.openlist.encrypt.android.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class SettingsFragment : Fragment(R.layout.fragment_settings) {
+    private var pendingExportContent: String? = null
+    private val saveLogLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        val content = pendingExportContent
+        pendingExportContent = null
+        if (content == null || uri == null) return@registerForActivityResult
+        val result = writeExport(uri, content)
+        val root = view ?: return@registerForActivityResult
+        if (result.isSuccess) {
+            Snackbar.make(root, getString(R.string.logs_export_success, uri.toString()), Snackbar.LENGTH_LONG).show()
+        } else {
+            Snackbar.make(
+                root,
+                getString(R.string.logs_export_failed, result.exceptionOrNull()?.message ?: ""),
+                Snackbar.LENGTH_LONG
+            ).show()
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val host = activity as? MainUiHost ?: return
@@ -55,6 +80,14 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         updateAutoCheckSwitch.isChecked = config.update.autoCheck
         expertJsonInput.setText(host.prettyJson(config))
         updateStatus.text = getString(R.string.update_status_idle)
+        logsPreview.movementMethod = ScrollingMovementMethod.getInstance()
+        logsPreview.setOnTouchListener { v, event ->
+            v.parent?.requestDisallowInterceptTouchEvent(true)
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                v.parent?.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
 
         fun renderOverview() {
             configOverview.text = getString(
@@ -289,9 +322,23 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         }
 
         view.findViewById<View>(R.id.exportLogsButton).setOnClickListener {
-            host.runExportLogs { result ->
-                Snackbar.make(view, result.message, Snackbar.LENGTH_LONG).show()
+            host.runLoadLogsForExport { content ->
+                pendingExportContent = content
+                val fileName = "openencrypt-log-export-${stamp()}.txt"
+                saveLogLauncher.launch(fileName)
             }
         }
+    }
+
+    private fun writeExport(uri: Uri, content: String): Result<Unit> = runCatching {
+        requireContext().contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
+            requireNotNull(writer) { "output stream unavailable" }
+            writer.write(content)
+            writer.flush()
+        }
+    }
+
+    private fun stamp(): String {
+        return SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
     }
 }

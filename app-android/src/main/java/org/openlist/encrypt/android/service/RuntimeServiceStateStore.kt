@@ -9,11 +9,14 @@ object RuntimeServiceStateStore {
     private const val STATE_STOPPED = "stopped"
     private const val STATE_STARTING = "starting"
     private const val STATE_RUNNING = "running"
+    private const val STATE_DEGRADED = "degraded"
     private const val STATE_STOPPING = "stopping"
 
     fun markStarting(context: Context) = write(context, STATE_STARTING)
 
     fun markRunning(context: Context) = write(context, STATE_RUNNING)
+
+    fun markDegraded(context: Context) = write(context, STATE_DEGRADED)
 
     fun markStopping(context: Context) = write(context, STATE_STOPPING)
 

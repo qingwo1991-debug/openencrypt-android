@@ -70,6 +70,10 @@ jobs:
         with:
           gradle-version: "8.10.2"
           cache-disabled: true
+      - name: Verify Android runtime binaries
+        run: |
+          chmod +x tools/check-android-runtime-bins.sh
+          tools/check-android-runtime-bins.sh
       - name: Android lint + unit test + assembleDebug
         run: |
           if [[ -x ./gradlew ]]; then
@@ -131,6 +135,10 @@ jobs:
         with:
           gradle-version: "8.10.2"
           cache-disabled: true
+      - name: Verify Android runtime binaries
+        run: |
+          chmod +x tools/check-android-runtime-bins.sh
+          tools/check-android-runtime-bins.sh
       - name: Build preview release APKs (unsigned)
         env:
           BUILD_VERSION_NAME: preview-${{ github.run_number }}

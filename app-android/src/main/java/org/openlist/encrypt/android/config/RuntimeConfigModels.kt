@@ -1,5 +1,7 @@
 package org.openlist.encrypt.android.config
 
+const val DEFAULT_UPDATE_GITHUB_REPO = "qingwo1991-debug/openencrypt-android"
+
 data class OpenListConfig(
     val host: String = "127.0.0.1",
     val port: Int = 5244,
@@ -40,7 +42,7 @@ data class EncryptRule(
 
 data class UpdateConfig(
     val channel: String = "stable",
-    val githubRepo: String = "owner/openencrypt-android",
+    val githubRepo: String = DEFAULT_UPDATE_GITHUB_REPO,
     val autoCheck: Boolean = true
 )
 

@@ -22,6 +22,14 @@ class RuntimeLogStore(private val context: Context) {
     }
 
     fun mergedTail(maxLinesPerFile: Int = 120): String {
+        return merged(maxLinesPerFile)
+    }
+
+    fun mergedForExport(): String {
+        return merged(maxLinesPerFile = null)
+    }
+
+    private fun merged(maxLinesPerFile: Int?): String {
         val sections = listOf(
             "APP" to appLogFile(),
             "OPENLIST" to openListLogFile(),
@@ -31,7 +39,8 @@ class RuntimeLogStore(private val context: Context) {
             val lines = if (!file.exists()) {
                 listOf("(empty)")
             } else {
-                file.readLines().takeLast(maxLinesPerFile)
+                val all = file.readLines()
+                if (maxLinesPerFile == null) all else all.takeLast(maxLinesPerFile)
             }
             "===== $name =====\n" + lines.joinToString("\n")
         }
@@ -40,7 +49,7 @@ class RuntimeLogStore(private val context: Context) {
     fun exportMerged(): File {
         val outDir = ensure(exportDir)
         val file = outDir.resolve("openencrypt-log-export-${stamp()}.txt")
-        file.writeText(mergedTail(400))
+        file.writeText(mergedForExport())
         return file
     }
 

@@ -24,7 +24,8 @@
 
 ## Automation Entry
 - one-shot local acceptance: `tools/acceptance-check.sh`
-- GitHub Actions acceptance workflow: `.github/workflows/acceptance.yml` (manual dispatch, supports 72h by setting `soak_minutes=4320`)
+- GitHub Actions acceptance workflow: `.github/workflows/acceptance.yml` (manual dispatch, hosted-runner soak is capped to 60 minutes for CI sanity)
+- 72h soak final sign-off: run on real device or self-hosted runner (`tools/runtime-soak-check.sh 4320 15`) and archive `.reports/soak-report-*.md`
 
 ## Exit Criteria
 All category checks pass on target ABI matrix before `v1.0.0`.

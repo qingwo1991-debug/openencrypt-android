@@ -51,9 +51,14 @@ class RuntimeService : Service() {
                 startForeground(NOTIFICATION_ID, buildNotification("Starting runtime"))
                 scope.launch {
                     coordinator.startAll()
-                    RuntimeServiceStateStore.markRunning(applicationContext)
-                    logStore.appendApp("runtime.service", "running:${coordinator.currentState()}")
-                    updateForeground("Runtime: ${coordinator.currentState()}")
+                    val state = coordinator.currentState()
+                    if (state == RuntimeState.Running) {
+                        RuntimeServiceStateStore.markRunning(applicationContext)
+                    } else {
+                        RuntimeServiceStateStore.markDegraded(applicationContext)
+                    }
+                    logStore.appendApp("runtime.service", "state:$state")
+                    updateForeground("Runtime: $state")
                 }
             }
         }

@@ -461,8 +461,10 @@
             android:layout_width="match_parent"
             android:layout_height="220dp"
             android:padding="16dp"
-            android:scrollbars="vertical"
+            android:scrollHorizontally="true"
+            android:scrollbars="vertical|horizontal"
             android:textIsSelectable="true"
+            android:typeface="monospace"
             android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
     </LinearLayout>
 </ScrollView>

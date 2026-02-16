@@ -138,7 +138,7 @@ class ConfigRepository(context: Context) {
             encryptRules = rules,
             update = UpdateConfig(
                 channel = update.optString("channel", "stable"),
-                githubRepo = update.optString("github_repo", "owner/openencrypt-android"),
+                githubRepo = update.optString("github_repo", DEFAULT_UPDATE_GITHUB_REPO),
                 autoCheck = update.optBoolean("auto_check", true)
             )
         )

@@ -1,7 +1,7 @@
 # SESSION_STATE
 
 ## Session Meta
-- last_updated: 2026-02-16T22:02:00Z
+- last_updated: 2026-02-16T15:57:04Z
 - project: openencrypt-android
 - active_branch: main
 - last_commit: f2d31f0
@@ -35,7 +35,7 @@
 - [done] REL-003: main 每次 push 自动版本+1并发布 GitHub Releases。
 - [done] TST-001: Playback/Range/WebDAV 自动矩阵验收（脚本+CI工作流）。
 - [done] TST-002: Soak 自动化与报告链路（支持 72h 参数化）。
-- [todo] TST-003: 72h 真机 Soak 执行并归档报告（执行项）。
+- [blocked] TST-003: 72h 真机 Soak 执行并归档报告（需真机或 self-hosted 执行；GitHub hosted runner 仅保留短时 soak）。
 
 ## Progress Log (Append-Only)
 - 2026-02-16T10:59Z | 完成 release/ci 大改与更新中心链路 | commit:f950021
@@ -46,10 +46,21 @@
 - 2026-02-16T20:58Z | main push 自动版本+1与 release 发布 | commit:de419c1 | run:22063664239 success
 - 2026-02-16T21:20Z | UI Fragment 化 + 专家模式/诊断/备份恢复 + diff确认保存 | commit:a6954d5
 - 2026-02-16T21:54Z | 全字段 JSON 专家编辑 + 矩阵测试 + soak自动化/报告 + acceptance工作流 | commit:f2d31f0
+- 2026-02-16T15:01Z | 恢复入口=程序意外结束；一致性检查完成；本地短时 soak(1m) 通过并产出报告 | report:.reports/soak-report-20260216-230040.md
+- 2026-02-16T15:24Z | 72h Acceptance soak 已触发（run:22068420180, soak_minutes=4320, interval=15s）| status:queued
+- 2026-02-16T15:42Z | run:22068420180 已取消（hosted runner 不用于 72h soak）| conclusion:cancelled
+- 2026-02-16T15:44Z | 调整 acceptance workflow：hosted soak 限制 60min；72h 改为真机/self-hosted 执行 | file:.github/workflows/acceptance.yml
+- 2026-02-16T15:44Z | Android runtime 二进制链路修复：按 ABI 资产安装 + 构建前强校验，防止产出缺核心二进制 APK | file:app-android/build.gradle.kts
+- 2026-02-16T15:50Z | CI/Release 增加 Android runtime 二进制预检（tools/check-android-runtime-bins.sh），构建前快速失败并给出来源提示 | file:.github/workflows/ci.yml
+- 2026-02-16T15:56Z | 远端 Acceptance 短测 run:22069404510 success（仍为远端旧 workflow，artifact 上传缺失）| note:本地已修复 include-hidden-files=true，待 push 生效
 
 ## Failures & Decisions
 ### Failures
 - 22060069945: android-sanity / android-preview-release 失败，原因：BuildConfig 未生成导致 UpdateCoordinator 编译报错。
+- 2026-02-16T15:01Z: `gh run list` 失败（HTTP 401 Bad credentials），`gh auth status` 显示 `GH_TOKEN` 已失效。
+- 2026-02-16T15:23Z: 恢复发现本会话环境变量 `GH_TOKEN` 仍为旧值；通过 `unset GH_TOKEN` 后回退到 `~/.config/gh/hosts.yml` 凭据正常。
+- 2026-02-16T15:42Z: Acceptance run 22068420180 触发 72h soak 后取消；原因：GitHub hosted runner 不适合作为 72h soak 执行面。
+- 2026-02-16T15:56Z: Acceptance artifact 未上传根因确认：`upload-artifact@v4` 默认 `include-hidden-files=false`，`.reports/*.md` 被忽略（本地 workflow 已修复，待 push）。
 
 ### Decisions
 - 每次 push main 都自动发布 release。

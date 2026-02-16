@@ -56,5 +56,5 @@ Last updated: 2026-02-16
 - `Implemented` Secret model and release signing workflow are consistent with docs.
 
 ## Next execution order
-1. Execute 72h real-device soak run via Acceptance workflow (`soak_minutes=4320`) and archive report.
+1. Execute 72h real-device soak run on device/self-hosted environment (`tools/runtime-soak-check.sh 4320 15`) and archive report.
 2. ABI-tier performance tuning and release hardening pass for `v1.0.0`.

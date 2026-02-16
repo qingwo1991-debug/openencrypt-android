@@ -3,6 +3,7 @@ package org.openlist.encrypt.android.update
 import android.content.Context
 import android.os.Build
 import org.openlist.encrypt.android.BuildConfig
+import org.openlist.encrypt.android.config.DEFAULT_UPDATE_GITHUB_REPO
 import org.openlist.encrypt.android.config.ConfigRepository
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,9 +24,11 @@ class UpdateCoordinator(
     private val verifier: UpdateArtifactVerifier = UpdateArtifactVerifier(),
     private val installer: ApkInstaller = ApkInstaller(context)
 ) {
+    private var lastFetchError: String? = null
+
     fun checkLatest(): UpdateExecutionResult {
         val release = fetchRelease()
-            ?: return record("check", ok = false, detail = "latest release unavailable")
+            ?: return record("check", ok = false, detail = "latest release unavailable${lastFetchError?.let { " ($it)" } ?: ""}")
         val currentTag = currentTag()
         val decision = planner.decide(currentTag, selectAbi(), release)
         return if (decision.hasUpdate) {
@@ -37,7 +40,7 @@ class UpdateCoordinator(
 
     fun checkDownloadAndInstall(): UpdateExecutionResult {
         val release = fetchRelease()
-            ?: return record("install", ok = false, detail = "latest release unavailable")
+            ?: return record("install", ok = false, detail = "latest release unavailable${lastFetchError?.let { " ($it)" } ?: ""}")
 
         val decision = planner.decide(currentTag(), selectAbi(), release)
         if (!decision.hasUpdate) {
@@ -72,13 +75,23 @@ class UpdateCoordinator(
 
     private fun fetchRelease(): GithubRelease? {
         val cfg = configRepository.loadOrDefault()
-        val repo = cfg.update.githubRepo.trim()
+        val repo = normalizeRepo(cfg.update.githubRepo.trim())
         val split = repo.split('/')
         if (split.size != 2 || split.any { it.isBlank() }) {
+            lastFetchError = "invalid update repo: $repo"
             return null
         }
 
-        return GithubReleaseChecker(owner = split[0], repo = split[1]).fetchLatestStable()
+        val fetched = GithubReleaseChecker(owner = split[0], repo = split[1]).fetchLatestStable()
+        lastFetchError = fetched.error
+        return fetched.release
+    }
+
+    private fun normalizeRepo(repo: String): String {
+        if (repo.isBlank() || repo == "owner/openencrypt-android") {
+            return DEFAULT_UPDATE_GITHUB_REPO
+        }
+        return repo
     }
 
     private fun currentTag(): String {

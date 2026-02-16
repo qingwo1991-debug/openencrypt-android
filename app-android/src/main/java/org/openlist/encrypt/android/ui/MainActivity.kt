@@ -18,6 +18,7 @@ import org.openlist.encrypt.android.service.RuntimeService
 import org.openlist.encrypt.android.service.RuntimeServiceStateStore
 import org.openlist.encrypt.android.update.UpdateCoordinator
 import org.openlist.encrypt.android.update.UpdateHistoryStore
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -121,6 +122,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         val historyCount = updateHistoryStore.latest(10).size
         val snapshots = configRepo.listSnapshotNames(100).size
         val serviceState = RuntimeServiceStateStore.read(this)
+        val runtimeBins = runtimeBinaryStatus()
         return listOf(
             DiagnosticItem(
                 key = "config.validate",
@@ -146,6 +148,11 @@ class MainActivity : AppCompatActivity(), MainUiHost {
                 key = "runtime.service_state",
                 ok = serviceState == "running" || serviceState == "starting",
                 message = serviceState
+            ),
+            DiagnosticItem(
+                key = "runtime.binaries_ready",
+                ok = runtimeBins.ok,
+                message = runtimeBins.message
             )
         )
     }
@@ -271,7 +278,14 @@ class MainActivity : AppCompatActivity(), MainUiHost {
 
     override fun runLoadLogs(onDone: (String) -> Unit) {
         ioExecutor.execute {
-            val content = logStore.mergedTail()
+            val content = logStore.mergedTail(300)
+            runOnUiThread { onDone(content) }
+        }
+    }
+
+    override fun runLoadLogsForExport(onDone: (String) -> Unit) {
+        ioExecutor.execute {
+            val content = logStore.mergedForExport()
             runOnUiThread { onDone(content) }
         }
     }
@@ -336,5 +350,23 @@ class MainActivity : AppCompatActivity(), MainUiHost {
                 code
             }
         }.getOrNull()
+    }
+
+    private fun runtimeBinaryStatus(): DiagnosticItem {
+        val openlist = File(filesDir, "openencrypt/bin/openlist-runtime")
+        val gateway = File(filesDir, "openencrypt/bin/openencrypt-gateway")
+        val missing = buildList {
+            if (!openlist.exists() || !openlist.canExecute()) add("openlist-runtime")
+            if (!gateway.exists() || !gateway.canExecute()) add("openencrypt-gateway")
+        }
+        return if (missing.isEmpty()) {
+            DiagnosticItem(key = "runtime.binaries_ready", ok = true, message = "ok")
+        } else {
+            DiagnosticItem(
+                key = "runtime.binaries_ready",
+                ok = false,
+                message = "missing:${missing.joinToString(",")}"
+            )
+        }
     }
 }

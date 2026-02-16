@@ -20,22 +20,22 @@ class RuntimeCoordinator(
     }
 
     suspend fun stopAll() {
-        runCatching { processController.stopGateway() }
         runCatching { processController.stopOpenList() }
+        runCatching { processController.stopGateway() }
         state = RuntimeState.Stopped
     }
 
     fun currentState(): RuntimeState = state
 
     private suspend fun startSequence() {
-        processController.startOpenList()
-        if (!waitHealthy { processController.checkOpenListHealth() }) {
-            throw IllegalStateException("openlist health check timeout")
-        }
-
         processController.startGateway()
         if (!waitHealthy { processController.checkGatewayHealth() }) {
             throw IllegalStateException("gateway health check timeout")
+        }
+
+        processController.startOpenList()
+        if (!waitHealthy { processController.checkOpenListHealth() }) {
+            throw IllegalStateException("openlist health check timeout")
         }
 
         state = RuntimeState.Running

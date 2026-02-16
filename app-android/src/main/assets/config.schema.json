@@ -68,7 +68,7 @@
       "required": ["channel", "github_repo", "auto_check"],
       "properties": {
         "channel": {"type": "string", "enum": ["stable"], "default": "stable", "x-level": "standard"},
-        "github_repo": {"type": "string", "default": "owner/openencrypt-android", "x-level": "expert"},
+        "github_repo": {"type": "string", "default": "qingwo1991-debug/openencrypt-android", "x-level": "expert"},
         "auto_check": {"type": "boolean", "default": true, "x-level": "standard"}
       }
     }

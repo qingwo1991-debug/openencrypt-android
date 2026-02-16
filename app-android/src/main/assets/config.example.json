@@ -28,7 +28,7 @@
   "encrypt_rules": [],
   "update": {
     "channel": "stable",
-    "github_repo": "owner/openencrypt-android",
+    "github_repo": "qingwo1991-debug/openencrypt-android",
     "auto_check": true
   }
 }
