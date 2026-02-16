@@ -1,0 +1,47 @@
+name: Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      soak_minutes:
+        description: "Runtime soak duration in minutes (72h=4320)"
+        required: true
+        default: "10"
+      soak_interval_seconds:
+        description: "Soak probe interval seconds"
+        required: true
+        default: "15"
+
+jobs:
+  matrix-and-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: false
+
+      - name: Playback/WebDAV matrix checks
+        run: |
+          chmod +x tools/playback-webdav-matrix-check.sh
+          tools/playback-webdav-matrix-check.sh
+
+      - name: Runtime soak check
+        run: |
+          chmod +x tools/runtime-soak-check.sh tools/soak-report.sh
+          tools/runtime-soak-check.sh "${{ github.event.inputs.soak_minutes }}" "${{ github.event.inputs.soak_interval_seconds }}"
+
+      - name: Upload acceptance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-reports-${{ github.run_number }}
+          path: .reports/*.md
+          if-no-files-found: warn

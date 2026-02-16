@@ -1,11 +1,11 @@
 # SESSION_STATE
 
 ## Session Meta
-- last_updated: 2026-02-16T21:28:00Z
+- last_updated: 2026-02-16T21:55:00Z
 - project: openencrypt-android
 - active_branch: main
-- last_commit: a6954d5
-- last_ci_run: 22063664239 (completed success)
+- last_commit: 874ab36
+- last_ci_run: 22064174943 (completed success)
 - mode: implementing
 - writeback_policy: event-driven + throttled (3 turns or 15 minutes)
 
@@ -33,6 +33,9 @@
 - [done] DIA-001: Diagnostics 页面（baseline 诊断聚合）。
 - [done] SEC-001: Security & Backup 页面（快照列表/恢复）。
 - [done] REL-003: main 每次 push 自动版本+1并发布 GitHub Releases。
+- [done] TST-001: Playback/Range/WebDAV 自动矩阵验收（脚本+CI工作流）。
+- [done] TST-002: Soak 自动化与报告链路（支持 72h 参数化）。
+- [todo] TST-003: 72h 真机 Soak 执行并归档报告（执行项）。
 
 ## Progress Log (Append-Only)
 - 2026-02-16T10:59Z | 完成 release/ci 大改与更新中心链路 | commit:f950021
@@ -42,6 +45,7 @@
 - 2026-02-16T12:25Z | 加密规则更新/删除增强 | commit:013cc4d | run:22062668702 success
 - 2026-02-16T20:58Z | main push 自动版本+1与 release 发布 | commit:de419c1 | run:22063664239 success
 - 2026-02-16T21:20Z | UI Fragment 化 + 专家模式/诊断/备份恢复 + diff确认保存 | commit:a6954d5
+- 2026-02-16T21:54Z | 全字段 JSON 专家编辑 + 矩阵测试 + soak自动化/报告 + acceptance工作流 | commit:pending
 
 ## Failures & Decisions
 ### Failures

@@ -74,6 +74,11 @@
     <string name="config_overview_title">配置总览</string>
     <string name="expert_mode_title">专家模式（显示全字段）</string>
     <string name="expert_save">保存专家配置</string>
+    <string name="expert_json_title">全量 JSON 专家编辑（schema 全字段）</string>
+    <string name="expert_json_hint">在此直接编辑 runtime-config JSON</string>
+    <string name="expert_json_apply">应用 JSON 配置</string>
+    <string name="expert_json_empty">JSON 不能为空</string>
+    <string name="expert_json_invalid">JSON 格式不合法</string>
     <string name="gateway_port_label">Gateway 端口</string>
     <string name="parallel_concurrency_label">并行解密并发</string>
     <string name="stream_buffer_label">流缓冲区（KB）</string>

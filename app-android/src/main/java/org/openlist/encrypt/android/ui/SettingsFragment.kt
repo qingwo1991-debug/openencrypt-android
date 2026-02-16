@@ -37,6 +37,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         val updateRepoInput = view.findViewById<TextInputEditText>(R.id.updateRepoInput)
         val updateAutoCheckSwitch = view.findViewById<SwitchMaterial>(R.id.updateAutoCheckSwitch)
         val restoreIndexInput = view.findViewById<TextInputEditText>(R.id.restoreIndexInput)
+        val expertJsonInput = view.findViewById<TextInputEditText>(R.id.expertJsonInput)
 
         gatewayPortInput.setText(config.gateway.port.toString())
         parallelInput.setText(config.gateway.parallelDecryptConcurrency.toString())
@@ -49,6 +50,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         fastFailSwitch.isChecked = config.runtime.enableUpstreamFastFail
         updateRepoInput.setText(config.update.githubRepo)
         updateAutoCheckSwitch.isChecked = config.update.autoCheck
+        expertJsonInput.setText(host.prettyJson(config))
         updateStatus.text = getString(R.string.update_status_idle)
 
         fun renderOverview() {
@@ -151,6 +153,46 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
                 .setPositiveButton(R.string.confirm_apply) { _, _ ->
                     val result = host.applyConfig(next)
                     Snackbar.make(view, result.message, Snackbar.LENGTH_SHORT).show()
+                    expertJsonInput.setText(host.prettyJson(host.currentConfig()))
+                    renderOverview()
+                    renderDiagnostics()
+                    renderSnapshots()
+                }
+                .setNegativeButton(R.string.cancel_apply, null)
+                .show()
+        }
+
+        view.findViewById<View>(R.id.expertJsonApplyButton).setOnClickListener {
+            val raw = expertJsonInput.text?.toString()?.trim().orEmpty()
+            if (raw.isBlank()) {
+                Snackbar.make(view, getString(R.string.expert_json_empty), Snackbar.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val parsed = host.parseJson(raw)
+            if (parsed.isFailure) {
+                Snackbar.make(
+                    view,
+                    getString(
+                        R.string.save_failed_prefix,
+                        parsed.exceptionOrNull()?.message ?: getString(R.string.expert_json_invalid)
+                    ),
+                    Snackbar.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
+            val next = parsed.getOrThrow()
+            val diff = host.previewChangedKeys(next)
+            if (diff.isEmpty()) {
+                Snackbar.make(view, getString(R.string.no_changes), Snackbar.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.diff_preview_title)
+                .setMessage(diff.take(30).joinToString("\n"))
+                .setPositiveButton(R.string.confirm_apply) { _, _ ->
+                    val result = host.applyConfig(next)
+                    Snackbar.make(view, result.message, Snackbar.LENGTH_SHORT).show()
+                    expertJsonInput.setText(host.prettyJson(host.currentConfig()))
                     renderOverview()
                     renderDiagnostics()
                     renderSnapshots()
@@ -199,6 +241,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
                 .setPositiveButton(R.string.confirm_apply) { _, _ ->
                     val result = host.restoreSnapshot(snapshot)
                     Snackbar.make(view, result.message, Snackbar.LENGTH_SHORT).show()
+                    expertJsonInput.setText(host.prettyJson(host.currentConfig()))
                     renderOverview()
                     renderDiagnostics()
                     renderSnapshots()

@@ -49,13 +49,12 @@ Last updated: 2026-02-16
 - `Implemented (this round)` `main` push auto patch bump + tag + GitHub Release publishing.
 
 ## docs/11_test_acceptance.md
-- `Partially Implemented` Automated subset exists in `tools/acceptance-check.sh`.
-- `Gap` Full functional/stability/performance acceptance (including 72h soak and playback matrix) is pending.
+- `Implemented (this round)` Automated acceptance includes playback/range/WebDAV matrix and runtime soak automation/report generation.
+- `Gap` 72h real-device soak final sign-off remains an execution activity, not a tooling gap.
 
 ## docs/12_signing_and_env_setup.md
 - `Implemented` Secret model and release signing workflow are consistent with docs.
 
 ## Next execution order
-1. Full schema-driven dynamic form renderer (replace current fixed-field expert form).
-2. Functional playback/WebDAV matrix + 72h real-device soak automation/reporting.
-3. ABI-tier performance tuning and release hardening pass for `v1.0.0`.
+1. Execute 72h real-device soak run via Acceptance workflow (`soak_minutes=4320`) and archive report.
+2. ABI-tier performance tuning and release hardening pass for `v1.0.0`.

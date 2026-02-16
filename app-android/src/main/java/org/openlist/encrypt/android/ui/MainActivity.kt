@@ -202,6 +202,14 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         }
     }
 
+    override fun prettyJson(config: AppRuntimeConfig): String {
+        return configRepo.toPrettyJson(config)
+    }
+
+    override fun parseJson(raw: String): Result<AppRuntimeConfig> {
+        return runCatching { configRepo.parseJson(raw) }
+    }
+
     override fun onDestroy() {
         ioExecutor.shutdownNow()
         super.onDestroy()

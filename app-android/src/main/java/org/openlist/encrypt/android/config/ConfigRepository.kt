@@ -76,6 +76,14 @@ class ConfigRepository(context: Context) {
         return saveAtomically(parsed)
     }
 
+    fun parseJson(raw: String): AppRuntimeConfig {
+        return parse(raw)
+    }
+
+    fun toPrettyJson(config: AppRuntimeConfig): String {
+        return serialize(config).toString(2)
+    }
+
     private fun parse(raw: String): AppRuntimeConfig {
         val root = JSONObject(raw)
         val openlist = root.optJSONObject("openlist") ?: JSONObject()

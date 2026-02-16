@@ -16,6 +16,11 @@ Language: [中文](#中文) | [English](#english)
 - 签名：从 GitHub `production` Environment secrets 读取
 - 产物：APK + `checksums.txt` 发布到 GitHub Release
 
+### Acceptance CI（手动）
+- 工作流：`Acceptance`
+- 可传入 `soak_minutes`（`4320` 即 72h）与探测间隔
+- 输出：Playback/WebDAV 矩阵与 Soak 报告（上传为 artifact）
+
 ### 必需 Secrets（production Environment）
 - `ANDROID_KEYSTORE_BASE64`
 - `ANDROID_KEYSTORE_PASSWORD`
@@ -39,6 +44,11 @@ Language: [中文](#中文) | [English](#english)
 - Outputs: split APKs for `arm64-v8a` and `armeabi-v7a`
 - Signing: read from GitHub `production` Environment secrets
 - Publish: APKs + `checksums.txt` to GitHub Release
+
+### Acceptance CI (manual)
+- Workflow: `Acceptance`
+- Inputs: `soak_minutes` (`4320` for 72h) and probe interval
+- Outputs: playback/WebDAV matrix and soak reports uploaded as artifacts
 
 ### Required Secrets (production Environment)
 - `ANDROID_KEYSTORE_BASE64`

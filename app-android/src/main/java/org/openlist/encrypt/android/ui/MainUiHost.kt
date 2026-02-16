@@ -24,4 +24,6 @@ interface MainUiHost {
     fun requestRuntimeStop(): UiActionResult
     fun runUpdateCheck(onDone: (UiActionResult) -> Unit)
     fun runUpdateInstall(onDone: (UiActionResult) -> Unit)
+    fun prettyJson(config: AppRuntimeConfig): String
+    fun parseJson(raw: String): Result<AppRuntimeConfig>
 }
