@@ -59,7 +59,7 @@ class RuntimeService : Service() {
     }
 
     private fun updateForeground(text: String) {
-        val nm = getSystemService(NotificationManager::class.java)
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID, buildNotification(text))
     }
 
@@ -75,7 +75,7 @@ class RuntimeService : Service() {
 
     private fun ensureChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java)
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             if (nm.getNotificationChannel(CHANNEL_ID) == null) {
                 nm.createNotificationChannel(
                     NotificationChannel(CHANNEL_ID, "Runtime", NotificationManager.IMPORTANCE_LOW)
