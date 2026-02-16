@@ -14,6 +14,7 @@ import org.openlist.encrypt.android.config.ConfigValidator
 import org.openlist.encrypt.android.config.SchemaFieldRegistry
 import org.openlist.encrypt.android.diagnostics.DiagnosticItem
 import org.openlist.encrypt.android.diagnostics.RuntimeLogStore
+import org.openlist.encrypt.android.runtime.NativeBinaryInstaller
 import org.openlist.encrypt.android.service.RuntimeService
 import org.openlist.encrypt.android.service.RuntimeServiceStateStore
 import org.openlist.encrypt.android.update.UpdateCoordinator
@@ -31,6 +32,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
     private lateinit var updateCoordinator: UpdateCoordinator
     private lateinit var updateHistoryStore: UpdateHistoryStore
     private lateinit var logStore: RuntimeLogStore
+    private lateinit var binaryInstaller: NativeBinaryInstaller
 
     private var currentConfig: AppRuntimeConfig = AppRuntimeConfig()
     private var schemaFields = 0
@@ -48,7 +50,10 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         updateCoordinator = UpdateCoordinator(this)
         updateHistoryStore = UpdateHistoryStore(this)
         logStore = RuntimeLogStore(this)
+        binaryInstaller = NativeBinaryInstaller(this)
         currentConfig = configRepo.loadOrDefault()
+        val installReport = binaryInstaller.installIfPresent()
+        logStore.appendApp("runtime.bin.install", installReport.detail)
 
         schemaFields = runCatching {
             val registry = SchemaFieldRegistry(this)
@@ -179,6 +184,8 @@ class MainActivity : AppCompatActivity(), MainUiHost {
     }
 
     override fun requestRuntimeStart(): UiActionResult {
+        val installReport = binaryInstaller.installIfPresent()
+        logStore.appendApp("runtime.bin.install.before_start", installReport.detail)
         val intent = Intent(this, RuntimeService::class.java).apply {
             action = RuntimeService.ACTION_START
         }
@@ -354,6 +361,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
     }
 
     private fun runtimeBinaryStatus(): DiagnosticItem {
+        val installReport = binaryInstaller.installIfPresent()
         val openlist = File(filesDir, "openencrypt/bin/openlist-runtime")
         val gateway = File(filesDir, "openencrypt/bin/openencrypt-gateway")
         val missing = buildList {
@@ -366,7 +374,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
             DiagnosticItem(
                 key = "runtime.binaries_ready",
                 ok = false,
-                message = "missing:${missing.joinToString(",")} at ${File(filesDir, "openencrypt/bin").absolutePath}"
+                message = "missing:${missing.joinToString(",")} at ${File(filesDir, "openencrypt/bin").absolutePath}; install=${installReport.detail}"
             )
         }
     }
