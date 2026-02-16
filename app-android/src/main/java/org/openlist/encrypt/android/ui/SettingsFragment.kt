@@ -2,6 +2,7 @@ package org.openlist.encrypt.android.ui
 
 import android.os.Bundle
 import android.view.View
+import android.widget.RadioGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -24,6 +25,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         val snapshotsView = view.findViewById<MaterialTextView>(R.id.snapshotSummary)
         val expertContainer = view.findViewById<View>(R.id.expertContainer)
         val expertSwitch = view.findViewById<SwitchMaterial>(R.id.expertModeSwitch)
+        val themeModeGroup = view.findViewById<RadioGroup>(R.id.themeModeGroup)
 
         val gatewayPortInput = view.findViewById<TextInputEditText>(R.id.gatewayPortInput)
         val parallelInput = view.findViewById<TextInputEditText>(R.id.parallelConcurrencyInput)
@@ -91,6 +93,21 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         renderDiagnostics()
         renderUpdateHistory()
         renderSnapshots()
+
+        val modeViewId = when (host.themeMode()) {
+            ThemeModeStore.MODE_LIGHT -> R.id.themeModeLight
+            ThemeModeStore.MODE_DARK -> R.id.themeModeDark
+            else -> R.id.themeModeSystem
+        }
+        themeModeGroup.check(modeViewId)
+        themeModeGroup.setOnCheckedChangeListener { _, checkedId ->
+            val mode = when (checkedId) {
+                R.id.themeModeLight -> ThemeModeStore.MODE_LIGHT
+                R.id.themeModeDark -> ThemeModeStore.MODE_DARK
+                else -> ThemeModeStore.MODE_SYSTEM
+            }
+            host.setThemeMode(mode)
+        }
 
         expertSwitch.setOnCheckedChangeListener { _, checked ->
             expertContainer.isVisible = checked

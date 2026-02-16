@@ -72,6 +72,10 @@
     <string name="cancel_apply">取消</string>
 
     <string name="config_overview_title">配置总览</string>
+    <string name="theme_mode_title">主题模式</string>
+    <string name="theme_mode_system">跟随系统</string>
+    <string name="theme_mode_light">浅色</string>
+    <string name="theme_mode_dark">深色</string>
     <string name="expert_mode_title">专家模式（显示全字段）</string>
     <string name="expert_save">保存专家配置</string>
     <string name="expert_json_title">全量 JSON 专家编辑（schema 全字段）</string>

@@ -37,6 +37,45 @@
             android:paddingEnd="16dp"
             android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:text="@string/theme_mode_title"
+            android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+
+        <RadioGroup
+            android:id="@+id/themeModeGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="16dp">
+
+            <RadioButton
+                android:id="@+id/themeModeSystem"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/theme_mode_system" />
+
+            <RadioButton
+                android:id="@+id/themeModeLight"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="@string/theme_mode_light" />
+
+            <RadioButton
+                android:id="@+id/themeModeDark"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="@string/theme_mode_dark" />
+        </RadioGroup>
+
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/expertModeSwitch"
             android:layout_width="match_parent"

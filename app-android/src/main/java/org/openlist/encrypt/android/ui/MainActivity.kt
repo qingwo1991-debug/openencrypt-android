@@ -210,6 +210,14 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         return runCatching { configRepo.parseJson(raw) }
     }
 
+    override fun themeMode(): Int = ThemeModeStore.read(this)
+
+    override fun setThemeMode(mode: Int) {
+        val changed = ThemeModeStore.write(this, mode)
+        ThemeModeStore.apply(this)
+        if (changed) recreate()
+    }
+
     override fun onDestroy() {
         ioExecutor.shutdownNow()
         super.onDestroy()

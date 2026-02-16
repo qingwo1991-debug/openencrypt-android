@@ -26,4 +26,6 @@ interface MainUiHost {
     fun runUpdateInstall(onDone: (UiActionResult) -> Unit)
     fun prettyJson(config: AppRuntimeConfig): String
     fun parseJson(raw: String): Result<AppRuntimeConfig>
+    fun themeMode(): Int
+    fun setThemeMode(mode: Int)
 }
