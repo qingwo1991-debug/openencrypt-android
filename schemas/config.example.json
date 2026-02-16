@@ -1,0 +1,33 @@
+{
+  "openlist": {
+    "host": "127.0.0.1",
+    "port": 5244,
+    "https": false
+  },
+  "gateway": {
+    "port": 5344,
+    "enable_parallel_decrypt": true,
+    "parallel_decrypt_concurrency": 4,
+    "stream_buffer_kb": 512
+  },
+  "webdav": {
+    "enable": true,
+    "header_timeout_ms": 5000,
+    "read_idle_timeout_ms": 12000,
+    "propfind_retry_timeout_ms": 1500
+  },
+  "runtime": {
+    "upstream_timeout_seconds": 8,
+    "probe_timeout_seconds": 3,
+    "probe_budget_list_ms": 1200,
+    "probe_budget_stream_ms": 2500,
+    "upstream_backoff_seconds": 20,
+    "enable_upstream_fast_fail": true
+  },
+  "encrypt_rules": [],
+  "update": {
+    "channel": "stable",
+    "github_repo": "owner/openencrypt-android",
+    "auto_check": true
+  }
+}

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  docs-and-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docs phases and bootstrap
+        run: |
+          chmod +x tools/phase-check.sh tools/bootstrap-check.sh
+          tools/bootstrap-check.sh
+      - name: Validate schema example
+        run: |
+          python3 tools/schema-check.py
+
+  rust-core:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('core-encrypt-rs/Cargo.toml') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Rust fmt check
+        run: |
+          cd core-encrypt-rs
+          cargo fmt --all -- --check
+      - name: Rust clippy
+        run: |
+          cd core-encrypt-rs
+          cargo clippy -- -D warnings
+      - name: Rust test
+        run: |
+          cd core-encrypt-rs
+          cargo test
+
+  android-sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Android lint + unit test + assembleDebug
+        run: |
+          gradle :app-android:lintDebug :app-android:testDebugUnitTest :app-android:assembleDebug
+
+  go-placeholder:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('core-openlist-go/go.mod') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Go vet/test
+        run: |
+          cd core-openlist-go
+          go vet ./...
+          go test ./...

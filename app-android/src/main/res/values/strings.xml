@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">OpenEncrypt</string>
+    <string name="runtime_start">Start Runtime</string>
+    <string name="runtime_stop">Stop Runtime</string>
+</resources>

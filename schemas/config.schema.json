@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openencrypt.example/schemas/config.schema.json",
+  "title": "OpenEncrypt Runtime Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["openlist", "gateway", "webdav", "runtime", "update"],
+  "properties": {
+    "openlist": {
+      "type": "object",
+      "required": ["host", "port", "https"],
+      "properties": {
+        "host": {"type": "string", "default": "127.0.0.1", "x-level": "standard"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535, "default": 5244, "x-level": "standard"},
+        "https": {"type": "boolean", "default": false, "x-level": "standard"}
+      }
+    },
+    "gateway": {
+      "type": "object",
+      "required": ["port", "enable_parallel_decrypt", "parallel_decrypt_concurrency"],
+      "properties": {
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535, "default": 5344, "x-level": "standard"},
+        "enable_parallel_decrypt": {"type": "boolean", "default": true, "x-level": "standard"},
+        "parallel_decrypt_concurrency": {"type": "integer", "minimum": 0, "maximum": 32, "default": 4, "x-level": "expert"},
+        "stream_buffer_kb": {"type": "integer", "minimum": 32, "maximum": 4096, "default": 512, "x-level": "expert"}
+      }
+    },
+    "webdav": {
+      "type": "object",
+      "required": ["enable", "header_timeout_ms", "read_idle_timeout_ms", "propfind_retry_timeout_ms"],
+      "properties": {
+        "enable": {"type": "boolean", "default": true, "x-level": "standard"},
+        "header_timeout_ms": {"type": "integer", "minimum": 500, "maximum": 30000, "default": 5000, "x-level": "expert"},
+        "read_idle_timeout_ms": {"type": "integer", "minimum": 1000, "maximum": 120000, "default": 12000, "x-level": "expert"},
+        "propfind_retry_timeout_ms": {"type": "integer", "minimum": 300, "maximum": 5000, "default": 1500, "x-level": "expert"}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["upstream_timeout_seconds", "probe_timeout_seconds", "probe_budget_list_ms", "probe_budget_stream_ms", "upstream_backoff_seconds", "enable_upstream_fast_fail"],
+      "properties": {
+        "upstream_timeout_seconds": {"type": "integer", "minimum": 2, "maximum": 120, "default": 8, "x-level": "standard"},
+        "probe_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 30, "default": 3, "x-level": "expert"},
+        "probe_budget_list_ms": {"type": "integer", "minimum": 300, "maximum": 10000, "default": 1200, "x-level": "expert"},
+        "probe_budget_stream_ms": {"type": "integer", "minimum": 500, "maximum": 20000, "default": 2500, "x-level": "expert"},
+        "upstream_backoff_seconds": {"type": "integer", "minimum": 1, "maximum": 300, "default": 20, "x-level": "expert"},
+        "enable_upstream_fast_fail": {"type": "boolean", "default": true, "x-level": "expert"}
+      }
+    },
+    "encrypt_rules": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "required": ["path", "password", "enc_type", "enc_name", "enable"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "x-level": "standard"},
+          "password": {"type": "string", "minLength": 1, "x-level": "standard", "x-sensitive": true},
+          "enc_type": {"type": "string", "enum": ["aes-ctr", "rc4md5"], "default": "aes-ctr", "x-level": "standard"},
+          "enc_name": {"type": "boolean", "default": false, "x-level": "standard"},
+          "enable": {"type": "boolean", "default": true, "x-level": "standard"}
+        }
+      }
+    },
+    "update": {
+      "type": "object",
+      "required": ["channel", "github_repo", "auto_check"],
+      "properties": {
+        "channel": {"type": "string", "enum": ["stable"], "default": "stable", "x-level": "standard"},
+        "github_repo": {"type": "string", "default": "owner/openencrypt-android", "x-level": "expert"},
+        "auto_check": {"type": "boolean", "default": true, "x-level": "standard"}
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_dashboard"
+        android:title="Dashboard" />
+    <item
+        android:id="@+id/nav_cloud"
+        android:title="Cloud" />
+    <item
+        android:id="@+id/nav_encrypt"
+        android:title="Encrypt" />
+    <item
+        android:id="@+id/nav_tasks"
+        android:title="Tasks" />
+    <item
+        android:id="@+id/nav_settings"
+        android:title="Settings" />
+</menu>

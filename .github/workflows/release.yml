@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Validate signing secrets
+        run: |
+          test -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}"
+          test -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+          test -n "${{ secrets.ANDROID_KEY_ALIAS }}"
+          test -n "${{ secrets.ANDROID_KEY_PASSWORD }}"
+      - name: Prepare keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+      - name: Build release APKs
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          BUILD_VERSION_NAME: ${{ github.ref_name }}
+          BUILD_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          gradle :app-android:assembleRelease
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp app-android/build/outputs/apk/release/*arm64-v8a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-arm64-v8a.apk
+          cp app-android/build/outputs/apk/release/*armeabi-v7a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-armeabi-v7a.apk
+          sha256sum dist/*.apk > dist/checksums.txt
+      - name: Publish GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/openencrypt-android-${{ github.ref_name }}-arm64-v8a.apk
+            dist/openencrypt-android-${{ github.ref_name }}-armeabi-v7a.apk
+            dist/checksums.txt
