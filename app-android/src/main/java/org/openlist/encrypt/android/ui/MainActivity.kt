@@ -53,7 +53,10 @@ class MainActivity : AppCompatActivity() {
         val encryptTypeInput = findViewById<TextInputEditText>(R.id.encryptTypeInput)
         val encryptNameSwitch = findViewById<SwitchMaterial>(R.id.encryptNameSwitch)
         val encryptEnableSwitch = findViewById<SwitchMaterial>(R.id.encryptEnableSwitch)
+        val encryptRuleIndexInput = findViewById<TextInputEditText>(R.id.encryptRuleIndexInput)
         val encryptAddRuleButton = findViewById<MaterialButton>(R.id.encryptAddRuleButton)
+        val encryptUpdateRuleButton = findViewById<MaterialButton>(R.id.encryptUpdateRuleButton)
+        val encryptDeleteRuleButton = findViewById<MaterialButton>(R.id.encryptDeleteRuleButton)
         val encryptClearRulesButton = findViewById<MaterialButton>(R.id.encryptClearRulesButton)
         val encryptRulesPreview = findViewById<MaterialTextView>(R.id.encryptRulesPreview)
 
@@ -160,6 +163,32 @@ class MainActivity : AppCompatActivity() {
             return raw.toIntOrNull()
         }
 
+        fun parseRuleIndexOrNull(total: Int): Int? {
+            val raw = encryptRuleIndexInput.text?.toString()?.trim().orEmpty()
+            val oneBased = raw.toIntOrNull() ?: return null
+            if (oneBased < 1 || oneBased > total) return null
+            return oneBased - 1
+        }
+
+        fun buildRuleFromForm(): EncryptRule? {
+            val path = encryptPathInput.text?.toString()?.trim().orEmpty()
+            val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
+            val encType = encryptTypeInput.text?.toString()?.trim().orEmpty().ifBlank { "aes-ctr" }
+            if (path.isBlank() || password.isBlank()) {
+                return null
+            }
+            if (encType != "aes-ctr" && encType != "rc4md5") {
+                return null
+            }
+            return EncryptRule(
+                path = path,
+                password = password,
+                encType = encType,
+                encName = encryptNameSwitch.isChecked,
+                enable = encryptEnableSwitch.isChecked
+            )
+        }
+
         fillForms(currentConfig)
 
         fun render(menuId: Int) {
@@ -228,7 +257,8 @@ class MainActivity : AppCompatActivity() {
             val path = encryptPathInput.text?.toString()?.trim().orEmpty()
             val password = encryptPasswordInput.text?.toString()?.trim().orEmpty()
             val encType = encryptTypeInput.text?.toString()?.trim().orEmpty().ifBlank { "aes-ctr" }
-            if (path.isBlank() || password.isBlank()) {
+            val newRule = buildRuleFromForm()
+            if (newRule == null && (path.isBlank() || password.isBlank())) {
                 Snackbar.make(
                     v,
                     getString(R.string.save_failed_prefix, getString(R.string.encrypt_required_error)),
@@ -236,7 +266,7 @@ class MainActivity : AppCompatActivity() {
                 ).show()
                 return@setOnClickListener
             }
-            if (encType != "aes-ctr" && encType != "rc4md5") {
+            if (newRule == null && (encType != "aes-ctr" && encType != "rc4md5")) {
                 Snackbar.make(
                     v,
                     getString(R.string.save_failed_prefix, getString(R.string.encrypt_type_error)),
@@ -244,18 +274,45 @@ class MainActivity : AppCompatActivity() {
                 ).show()
                 return@setOnClickListener
             }
-
-            val newRule = EncryptRule(
-                path = path,
-                password = password,
-                encType = encType,
-                encName = encryptNameSwitch.isChecked,
-                enable = encryptEnableSwitch.isChecked
-            )
             val next = currentConfig.copy(
-                encryptRules = currentConfig.encryptRules + newRule
+                encryptRules = currentConfig.encryptRules + newRule!!
             )
             saveConfig(next, v)
+        }
+
+        encryptUpdateRuleButton.setOnClickListener { v ->
+            val rules = currentConfig.encryptRules
+            val index = parseRuleIndexOrNull(rules.size)
+            if (index == null) {
+                Snackbar.make(v, getString(R.string.encrypt_index_error), Snackbar.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val updatedRule = buildRuleFromForm()
+            if (updatedRule == null) {
+                Snackbar.make(
+                    v,
+                    getString(R.string.save_failed_prefix, getString(R.string.encrypt_required_error)),
+                    Snackbar.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            val nextRules = rules.toMutableList()
+            nextRules[index] = updatedRule
+            saveConfig(currentConfig.copy(encryptRules = nextRules), v)
+        }
+
+        encryptDeleteRuleButton.setOnClickListener { v ->
+            val rules = currentConfig.encryptRules
+            val index = parseRuleIndexOrNull(rules.size)
+            if (index == null) {
+                Snackbar.make(v, getString(R.string.encrypt_index_error), Snackbar.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val nextRules = rules.toMutableList().also { it.removeAt(index) }
+            saveConfig(currentConfig.copy(encryptRules = nextRules), v)
         }
 
         encryptClearRulesButton.setOnClickListener { v ->

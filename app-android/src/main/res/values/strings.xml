@@ -39,11 +39,15 @@
     <string name="encrypt_rule_type_label">加密类型（aes-ctr/rc4md5）</string>
     <string name="encrypt_rule_name_label">加密文件名</string>
     <string name="encrypt_rule_enable_label">启用规则</string>
+    <string name="encrypt_rule_index_label">规则序号（从1开始）</string>
     <string name="encrypt_add_rule">新增规则</string>
+    <string name="encrypt_update_rule">更新规则</string>
+    <string name="encrypt_delete_rule">删除规则</string>
     <string name="encrypt_clear_rules">清空规则</string>
     <string name="encrypt_rules_preview">规则预览：\n%1$s</string>
     <string name="encrypt_rules_empty">暂无规则</string>
     <string name="encrypt_rule_line">[%1$d] %2$s | type=%3$s | name=%4$s | enable=%5$s</string>
+    <string name="encrypt_index_error">规则序号无效</string>
 
     <string name="tasks_webdav_enable_label">启用 WebDAV</string>
     <string name="tasks_header_timeout_label">Header 超时（ms）</string>

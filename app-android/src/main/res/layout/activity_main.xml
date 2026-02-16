@@ -217,6 +217,21 @@
                     android:paddingEnd="16dp"
                     android:text="@string/encrypt_rule_enable_label" />
 
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="16dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="16dp"
+                    android:hint="@string/encrypt_rule_index_label">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/encryptRuleIndexInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number" />
+                </com.google.android.material.textfield.TextInputLayout>
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -241,6 +256,32 @@
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
                         android:text="@string/encrypt_clear_rules" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="16dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/encryptUpdateRuleButton"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/encrypt_update_rule" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/encryptDeleteRuleButton"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="@string/encrypt_delete_rule" />
                 </LinearLayout>
 
                 <com.google.android.material.textview.MaterialTextView
