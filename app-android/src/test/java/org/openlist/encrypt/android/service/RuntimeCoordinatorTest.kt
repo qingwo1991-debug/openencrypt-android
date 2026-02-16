@@ -15,7 +15,7 @@ class RuntimeCoordinatorTest {
 
         coordinator.stopAll()
         assertEquals(RuntimeState.Stopped, coordinator.currentState())
-        assertEquals(listOf("startOpenList", "startGateway", "stopGateway", "stopOpenList"), c.calls)
+        assertEquals(listOf("startGateway", "startOpenList", "stopOpenList", "stopGateway"), c.calls)
     }
 
     @Test
