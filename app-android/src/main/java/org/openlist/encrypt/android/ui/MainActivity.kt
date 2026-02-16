@@ -14,8 +14,13 @@ import org.openlist.encrypt.android.R
 import org.openlist.encrypt.android.config.ConfigRepository
 import org.openlist.encrypt.android.config.SchemaFieldRegistry
 import org.openlist.encrypt.android.service.RuntimeService
+import org.openlist.encrypt.android.update.UpdateCoordinator
+import org.openlist.encrypt.android.update.UpdateHistoryStore
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
+    private val ioExecutor = Executors.newSingleThreadExecutor()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -23,6 +28,10 @@ class MainActivity : AppCompatActivity() {
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         val pageTitle = findViewById<MaterialTextView>(R.id.pageTitle)
         val pageSummary = findViewById<MaterialTextView>(R.id.pageSummary)
+        val updateStatus = findViewById<MaterialTextView>(R.id.updateStatus)
+        val updateHistory = findViewById<MaterialTextView>(R.id.updateHistory)
+        val checkUpdate = findViewById<MaterialButton>(R.id.checkUpdate)
+        val installUpdate = findViewById<MaterialButton>(R.id.installUpdate)
 
         toolbar.title = getString(R.string.app_name)
 
@@ -40,26 +49,49 @@ class MainActivity : AppCompatActivity() {
             fields
         }.getOrDefault(emptyList())
 
+        val updateCoordinator = UpdateCoordinator(this)
+        val updateHistoryStore = UpdateHistoryStore(this)
+
+        fun renderUpdateHistory() {
+            val lines = updateHistoryStore.latest(5).map {
+                getString(R.string.update_history_line, it.timestamp, it.result, it.detail)
+            }
+            val content = if (lines.isEmpty()) {
+                getString(R.string.update_history_empty)
+            } else {
+                lines.joinToString(separator = "\n")
+            }
+            updateHistory.text = getString(R.string.update_history_prefix, content)
+        }
+
         val pages = mapOf(
             R.id.nav_dashboard to (
-                "Dashboard" to
-                    "Runtime orchestration and diagnostics entry point."
+                getString(R.string.nav_dashboard) to
+                    getString(R.string.page_dashboard_summary)
                 ),
             R.id.nav_cloud to (
-                "Cloud" to
-                    "OpenList endpoint ${loaded.openlist.host}:${loaded.openlist.port}."
+                getString(R.string.nav_cloud) to
+                    getString(R.string.page_cloud_summary, loaded.openlist.host, loaded.openlist.port)
                 ),
             R.id.nav_encrypt to (
-                "Encrypt" to
-                    "Rules: ${loaded.encryptRules.size}, gateway port ${loaded.gateway.port}."
+                getString(R.string.nav_encrypt) to
+                    getString(R.string.page_encrypt_summary, loaded.encryptRules.size, loaded.gateway.port)
                 ),
             R.id.nav_tasks to (
-                "Tasks" to
-                    "WebDAV enabled: ${loaded.webdav.enable}, list budget ${loaded.runtime.probeBudgetListMs}ms."
+                getString(R.string.nav_tasks) to
+                    getString(
+                        R.string.page_tasks_summary,
+                        loaded.webdav.enable.toString(),
+                        loaded.runtime.probeBudgetListMs
+                    )
                 ),
             R.id.nav_settings to (
-                "Settings" to
-                    "Schema fields ${schemaFields.size}, changed keys ${saveResult?.changedKeys?.size ?: 0}."
+                getString(R.string.nav_settings) to
+                    getString(
+                        R.string.page_settings_summary,
+                        schemaFields.size,
+                        saveResult?.changedKeys?.size ?: 0
+                    )
                 )
         )
 
@@ -84,7 +116,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(intent)
             }
-            Snackbar.make(v, "Runtime start requested", Snackbar.LENGTH_SHORT).show()
+            Snackbar.make(v, getString(R.string.runtime_start_requested), Snackbar.LENGTH_SHORT).show()
         }
 
         findViewById<MaterialButton>(R.id.stopRuntime).setOnClickListener { v ->
@@ -92,7 +124,57 @@ class MainActivity : AppCompatActivity() {
                 action = RuntimeService.ACTION_STOP
             }
             startService(intent)
-            Snackbar.make(v, "Runtime stop requested", Snackbar.LENGTH_SHORT).show()
+            Snackbar.make(v, getString(R.string.runtime_stop_requested), Snackbar.LENGTH_SHORT).show()
         }
+
+        fun setUpdateButtonsEnabled(enabled: Boolean) {
+            checkUpdate.isEnabled = enabled
+            installUpdate.isEnabled = enabled
+        }
+
+        fun runUpdateJob(tag: String, block: () -> Unit) {
+            updateStatus.text = getString(R.string.update_status_running, tag)
+            setUpdateButtonsEnabled(false)
+            ioExecutor.execute {
+                block()
+                runOnUiThread {
+                    setUpdateButtonsEnabled(true)
+                    renderUpdateHistory()
+                }
+            }
+        }
+
+        checkUpdate.setOnClickListener {
+            runUpdateJob(getString(R.string.update_stage_check)) {
+                val result = updateCoordinator.checkLatest()
+                runOnUiThread {
+                    updateStatus.text = getString(
+                        R.string.update_status_result,
+                        result.stage,
+                        result.detail
+                    )
+                }
+            }
+        }
+
+        installUpdate.setOnClickListener {
+            runUpdateJob(getString(R.string.update_stage_install)) {
+                val result = updateCoordinator.checkDownloadAndInstall()
+                runOnUiThread {
+                    updateStatus.text = getString(
+                        R.string.update_status_result,
+                        result.stage,
+                        result.detail
+                    )
+                }
+            }
+        }
+
+        renderUpdateHistory()
+    }
+
+    override fun onDestroy() {
+        ioExecutor.shutdownNow()
+        super.onDestroy()
     }
 }

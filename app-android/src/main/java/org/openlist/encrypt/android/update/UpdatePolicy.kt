@@ -6,7 +6,9 @@ object UpdatePolicy {
     fun isStableTag(tag: String): Boolean = stableTag.matches(tag)
 
     fun isNewer(currentTag: String, incomingTag: String): Boolean {
-        return SemVer.parse(incomingTag) > SemVer.parse(currentTag)
+        val incoming = runCatching { SemVer.parse(incomingTag) }.getOrNull() ?: return false
+        val current = runCatching { SemVer.parse(currentTag) }.getOrNull() ?: return false
+        return incoming > current
     }
 
     fun selectAbiAsset(assets: List<GithubReleaseAsset>, abi: String): GithubReleaseAsset? {

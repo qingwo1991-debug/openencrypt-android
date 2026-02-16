@@ -9,6 +9,12 @@ android {
 
     val buildVersionName = System.getenv("BUILD_VERSION_NAME") ?: "0.1.0"
     val buildVersionCode = (System.getenv("BUILD_VERSION_CODE") ?: "1").toInt()
+    val hasReleaseSigningEnv = listOf(
+        "ANDROID_KEYSTORE_PATH",
+        "ANDROID_KEYSTORE_PASSWORD",
+        "ANDROID_KEY_ALIAS",
+        "ANDROID_KEY_PASSWORD"
+    ).all { !System.getenv(it).isNullOrBlank() }
 
     defaultConfig {
         applicationId = "org.openlist.encrypt.android"
@@ -20,17 +26,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    signingConfigs {
-        create("release") {
-            val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
-            val keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-            val keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-            val keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-            if (!keystorePath.isNullOrBlank() &&
-                !keystorePassword.isNullOrBlank() &&
-                !keyAlias.isNullOrBlank() &&
-                !keyPassword.isNullOrBlank()
-            ) {
+    if (hasReleaseSigningEnv) {
+        signingConfigs {
+            create("release") {
+                val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH").orEmpty()
+                val keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD").orEmpty()
+                val keyAlias = System.getenv("ANDROID_KEY_ALIAS").orEmpty()
+                val keyPassword = System.getenv("ANDROID_KEY_PASSWORD").orEmpty()
                 storeFile = file(keystorePath)
                 storePassword = keystorePassword
                 this.keyAlias = keyAlias
@@ -42,7 +44,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigningEnv) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

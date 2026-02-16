@@ -2,17 +2,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_dashboard"
-        android:title="Dashboard" />
+        android:title="@string/nav_dashboard" />
     <item
         android:id="@+id/nav_cloud"
-        android:title="Cloud" />
+        android:title="@string/nav_cloud" />
     <item
         android:id="@+id/nav_encrypt"
-        android:title="Encrypt" />
+        android:title="@string/nav_encrypt" />
     <item
         android:id="@+id/nav_tasks"
-        android:title="Tasks" />
+        android:title="@string/nav_tasks" />
     <item
         android:id="@+id/nav_settings"
-        android:title="Settings" />
+        android:title="@string/nav_settings" />
 </menu>

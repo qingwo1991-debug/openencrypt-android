@@ -87,10 +87,12 @@ assert obj["names"]==["foo","bar"]
 PY
 
 curl_local -fsS -X POST "http://127.0.0.1:${GO_PORT}/v1/admin/backoff/activate?seconds=2" >/dev/null
-status="$(curl_local -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${GO_PORT}/healthz")"
+status="$(curl_local -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${GO_PORT}/")"
 [[ "$status" == "503" ]]
 
 sleep 2
+post_status="$(curl_local -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${GO_PORT}/")"
+[[ "$post_status" != "503" ]]
 curl_local -fsS "http://127.0.0.1:${GO_PORT}/healthz" >/dev/null
 
 echo "runtime-e2e-check passed"

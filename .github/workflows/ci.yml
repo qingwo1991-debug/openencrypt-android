@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -68,6 +69,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.10.2"
+          cache-disabled: true
       - name: Android lint + unit test + assembleDebug
         run: |
           if [[ -x ./gradlew ]]; then
@@ -94,7 +96,7 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
       - name: Upload lint report artifact
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lint-report-${{ github.run_number }}
@@ -102,6 +104,65 @@ jobs:
             app-android/build/reports/lint-results-debug.html
             app-android/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
           if-no-files-found: warn
+      - name: CI artifact note
+        if: always()
+        run: |
+          {
+            echo "### Android CI Artifact Notes"
+            echo "- This workflow validates debug quality gates and uploads debug APKs as workflow artifacts."
+            echo "- GitHub workflow artifacts are downloaded as zip containers."
+            echo "- Signed stable release APKs are produced only by the \`Release\` workflow on \`v*.*.*\` tags."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  android-preview-release:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.10.2"
+          cache-disabled: true
+      - name: Build preview release APKs (unsigned)
+        env:
+          BUILD_VERSION_NAME: preview-${{ github.run_number }}
+          BUILD_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          if [[ -x ./gradlew ]]; then
+            GRADLE_CMD="./gradlew"
+          elif command -v gradle >/dev/null 2>&1; then
+            GRADLE_CMD="gradle"
+          else
+            echo "No gradle executable available. Commit Gradle Wrapper or install Gradle in runner."
+            exit 1
+          fi
+          "$GRADLE_CMD" :app-android:assembleRelease
+      - name: Collect preview release artifacts
+        run: |
+          mkdir -p dist
+          ls -l app-android/build/outputs/apk/release
+          compgen -G "app-android/build/outputs/apk/release/*arm64-v8a*.apk" >/dev/null
+          compgen -G "app-android/build/outputs/apk/release/*armeabi-v7a*.apk" >/dev/null
+          cp app-android/build/outputs/apk/release/*arm64-v8a*.apk dist/openencrypt-android-preview-arm64-v8a.apk
+          cp app-android/build/outputs/apk/release/*armeabi-v7a*.apk dist/openencrypt-android-preview-armeabi-v7a.apk
+          sha256sum dist/*.apk > dist/checksums.txt
+      - name: Upload preview release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-release-apk-${{ github.run_number }}
+          path: |
+            dist/openencrypt-android-preview-arm64-v8a.apk
+            dist/openencrypt-android-preview-armeabi-v7a.apk
+            dist/checksums.txt
+          if-no-files-found: error
 
   go-placeholder:
     runs-on: ubuntu-latest
@@ -120,6 +181,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.22.x"
+          cache: false
       - name: Go vet/test
         if: steps.go-check.outputs.exists == 'true'
         run: |

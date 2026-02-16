@@ -22,6 +22,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.10.2"
+          cache-disabled: true
       - name: Validate signing secrets
         run: |
           test -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}"
@@ -62,8 +63,14 @@ jobs:
         run: |
           mkdir -p dist
           ls -l app-android/build/outputs/apk/release
-          compgen -G "app-android/build/outputs/apk/release/*arm64-v8a*.apk" >/dev/null
-          compgen -G "app-android/build/outputs/apk/release/*armeabi-v7a*.apk" >/dev/null
+          if ! compgen -G "app-android/build/outputs/apk/release/*arm64-v8a*.apk" >/dev/null; then
+            echo "missing arm64-v8a release APK under app-android/build/outputs/apk/release"
+            exit 1
+          fi
+          if ! compgen -G "app-android/build/outputs/apk/release/*armeabi-v7a*.apk" >/dev/null; then
+            echo "missing armeabi-v7a release APK under app-android/build/outputs/apk/release"
+            exit 1
+          fi
           cp app-android/build/outputs/apk/release/*arm64-v8a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-arm64-v8a.apk
           cp app-android/build/outputs/apk/release/*armeabi-v7a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-armeabi-v7a.apk
           sha256sum dist/*.apk > dist/checksums.txt
