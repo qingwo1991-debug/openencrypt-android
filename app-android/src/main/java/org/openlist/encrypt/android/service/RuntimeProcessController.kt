@@ -8,6 +8,7 @@ import org.openlist.encrypt.android.diagnostics.RuntimeLogStore
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.concurrent.thread
 
 interface RuntimeProcessController {
     suspend fun startOpenList()
@@ -90,14 +91,25 @@ class DefaultRuntimeProcessController(
         require(binary.canExecute()) { "binary not executable: ${binary.absolutePath}" }
         outputFile.parentFile?.mkdirs()
 
-        return ProcessBuilder(binary.absolutePath)
+        val process = ProcessBuilder(binary.absolutePath)
             .directory(binary.parentFile)
             .redirectErrorStream(true)
-            .redirectOutput(ProcessBuilder.Redirect.appendTo(outputFile))
             .apply {
                 environment().putAll(env)
             }
             .start()
+
+        thread(name = "runtime-log-${binary.name}", isDaemon = true) {
+            runCatching {
+                outputFile.outputStream().buffered().use { out ->
+                    process.inputStream.use { input ->
+                        input.copyTo(out)
+                    }
+                    out.flush()
+                }
+            }
+        }
+        return process
     }
 
     private fun resolveBinary(envKey: String, defaultName: String): File {
