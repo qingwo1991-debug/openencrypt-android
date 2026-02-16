@@ -65,16 +65,37 @@ jobs:
           java-version: "17"
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+      - name: Install Android NDK
+        run: |
+          yes | sdkmanager --install "ndk;27.1.12297006"
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: false
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.10.2"
           cache-disabled: true
+      - name: Build Android runtime binaries
+        env:
+          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/27.1.12297006
+          RUNTIME_BIN_ROOT: ${{ runner.temp }}/android-runtime-bins
+        run: |
+          chmod +x tools/build-android-runtime-bins.sh
+          tools/build-android-runtime-bins.sh
       - name: Verify Android runtime binaries
+        env:
+          RUNTIME_BIN_ROOT: ${{ runner.temp }}/android-runtime-bins
         run: |
           chmod +x tools/check-android-runtime-bins.sh
           tools/check-android-runtime-bins.sh
       - name: Android lint + unit test + assembleDebug
+        env:
+          RUNTIME_BIN_ROOT: ${{ runner.temp }}/android-runtime-bins
         run: |
           if [[ -x ./gradlew ]]; then
             GRADLE_CMD="./gradlew"
@@ -130,12 +151,31 @@ jobs:
           java-version: "17"
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+      - name: Install Android NDK
+        run: |
+          yes | sdkmanager --install "ndk;27.1.12297006"
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: false
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.10.2"
           cache-disabled: true
+      - name: Build Android runtime binaries
+        env:
+          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/27.1.12297006
+          RUNTIME_BIN_ROOT: ${{ runner.temp }}/android-runtime-bins
+        run: |
+          chmod +x tools/build-android-runtime-bins.sh
+          tools/build-android-runtime-bins.sh
       - name: Verify Android runtime binaries
+        env:
+          RUNTIME_BIN_ROOT: ${{ runner.temp }}/android-runtime-bins
         run: |
           chmod +x tools/check-android-runtime-bins.sh
           tools/check-android-runtime-bins.sh
@@ -143,6 +183,7 @@ jobs:
         env:
           BUILD_VERSION_NAME: preview-${{ github.run_number }}
           BUILD_VERSION_CODE: ${{ github.run_number }}
+          RUNTIME_BIN_ROOT: ${{ runner.temp }}/android-runtime-bins
         run: |
           if [[ -x ./gradlew ]]; then
             GRADLE_CMD="./gradlew"
