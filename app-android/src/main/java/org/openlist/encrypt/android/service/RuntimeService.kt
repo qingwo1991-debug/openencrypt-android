@@ -14,9 +14,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.openlist.encrypt.android.R
+import org.openlist.encrypt.android.diagnostics.RuntimeLogStore
 
 class RuntimeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val logStore by lazy { RuntimeLogStore(applicationContext) }
     private val coordinator by lazy {
         RuntimeCoordinator(DefaultRuntimeProcessController(applicationContext))
     }
@@ -27,9 +29,11 @@ class RuntimeService : Service() {
         when (intent?.action ?: ACTION_START) {
             ACTION_STOP -> {
                 RuntimeServiceStateStore.markStopping(applicationContext)
+                logStore.appendApp("runtime.service", "stopping")
                 scope.launch {
                     coordinator.stopAll()
                     RuntimeServiceStateStore.markStopped(applicationContext)
+                    logStore.appendApp("runtime.service", "stopped")
                     updateForeground("Runtime stopped")
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -43,10 +47,12 @@ class RuntimeService : Service() {
 
             ACTION_START -> {
                 RuntimeServiceStateStore.markStarting(applicationContext)
+                logStore.appendApp("runtime.service", "starting")
                 startForeground(NOTIFICATION_ID, buildNotification("Starting runtime"))
                 scope.launch {
                     coordinator.startAll()
                     RuntimeServiceStateStore.markRunning(applicationContext)
+                    logStore.appendApp("runtime.service", "running:${coordinator.currentState()}")
                     updateForeground("Runtime: ${coordinator.currentState()}")
                 }
             }
@@ -56,6 +62,7 @@ class RuntimeService : Service() {
 
     override fun onDestroy() {
         RuntimeServiceStateStore.markStopped(applicationContext)
+        logStore.appendApp("runtime.service", "destroyed")
         scope.launch {
             coordinator.stopAll()
         }

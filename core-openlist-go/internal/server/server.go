@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -102,17 +103,28 @@ func (s *Server) handleDecryptNames(w http.ResponseWriter, r *http.Request) {
 	}
 	var req decryptReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.log.Printf("< ts=%s route=/v1/crypto/decrypt-names status=%d error=%q", time.Now().Format(time.RFC3339Nano), http.StatusBadRequest, "invalid payload")
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid payload"})
 		return
 	}
+	s.log.Printf("> ts=%s route=/v1/crypto/decrypt-names names=%d", time.Now().Format(time.RFC3339Nano), len(req.Names))
 	out := s.decryptor.DecryptNames(r.Context(), req.Names, s.cfg.EnableParallelDecrypt, s.cfg.ParallelDecryptThreshold, s.cfg.ParallelDecryptConcurrency)
+	s.log.Printf("< ts=%s route=/v1/crypto/decrypt-names status=%d names=%d", time.Now().Format(time.RFC3339Nano), http.StatusOK, len(out))
 	writeJSON(w, http.StatusOK, map[string]any{"names": out})
 }
 
 func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	fileHint := path.Base(r.URL.Path)
+	if fileHint == "." || fileHint == "/" {
+		fileHint = "-"
+	}
+	s.log.Printf("> ts=%s method=%s route=%s file=%s", start.Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), fileHint)
+
 	if s.cfg.EnableUpstreamFastFail {
 		if active, remaining := s.gate.IsActive(time.Now()); active {
 			w.Header().Set("Retry-After", itoa(int(remaining.Seconds())+1))
+			s.log.Printf("< ts=%s method=%s route=%s status=%d dur_ms=%d error=%q", time.Now().Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), http.StatusServiceUnavailable, time.Since(start).Milliseconds(), "upstream backing off")
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "upstream backing off"})
 			return
 		}
@@ -145,6 +157,7 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.log.Printf("proxy error: %v", err)
 		s.gate.Activate(s.cfg.UpstreamBackoff)
+		s.log.Printf("< ts=%s method=%s route=%s status=%d dur_ms=%d error=%q", time.Now().Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), http.StatusBadGateway, time.Since(start).Milliseconds(), "upstream unavailable")
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "upstream unavailable"})
 		return
 	}
@@ -156,9 +169,11 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 
 	copyHeaders(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	if _, err := io.Copy(w, resp.Body); err != nil {
+	n, err := io.Copy(w, resp.Body)
+	if err != nil {
 		s.log.Printf("copy body failed: %v", err)
 	}
+	s.log.Printf("< ts=%s method=%s route=%s status=%d dur_ms=%d bytes=%d", time.Now().Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), resp.StatusCode, time.Since(start).Milliseconds(), n)
 }
 
 func copyHeaders(dst, src http.Header) {

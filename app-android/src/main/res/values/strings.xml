@@ -110,4 +110,11 @@
     <string name="restore_confirm_body">将恢复：%1$s</string>
     <string name="restore_success">恢复成功：%1$s</string>
     <string name="restore_failed">恢复失败：%1$s</string>
+    <string name="logs_title">全链路日志</string>
+    <string name="logs_refresh">刷新日志</string>
+    <string name="logs_export">导出日志</string>
+    <string name="logs_loading">日志加载中...</string>
+    <string name="logs_refreshed">日志已刷新</string>
+    <string name="logs_export_success">日志已导出：%1$s</string>
+    <string name="logs_export_failed">日志导出失败：%1$s</string>
 </resources>

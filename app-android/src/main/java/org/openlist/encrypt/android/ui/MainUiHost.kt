@@ -25,6 +25,8 @@ interface MainUiHost {
     fun runUpdateCheck(onDone: (UiActionResult) -> Unit)
     fun runUpdateInstall(onDone: (UiActionResult) -> Unit)
     fun runRuntimeProbe(onDone: (List<DiagnosticItem>) -> Unit)
+    fun runLoadLogs(onDone: (String) -> Unit)
+    fun runExportLogs(onDone: (UiActionResult) -> Unit)
     fun prettyJson(config: AppRuntimeConfig): String
     fun parseJson(raw: String): Result<AppRuntimeConfig>
     fun themeMode(): Int

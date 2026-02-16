@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.openlist.encrypt.android.config.ConfigRepository
+import org.openlist.encrypt.android.diagnostics.RuntimeLogStore
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -22,6 +23,7 @@ class DefaultRuntimeProcessController(
     private val healthTimeoutMs: Int = 1500
 ) : RuntimeProcessController {
     private val configRepo = ConfigRepository(context)
+    private val logStore = RuntimeLogStore(context)
 
     override suspend fun startOpenList() = withContext(Dispatchers.IO) {
         val cfg = configRepo.loadOrDefault()
@@ -44,7 +46,7 @@ class DefaultRuntimeProcessController(
             "PARALLEL_DECRYPT_CONCURRENCY" to cfg.gateway.parallelDecryptConcurrency.toString()
         )
 
-        openListProcess = launch(bin, env)
+        openListProcess = launch(bin, env, logStore.openListLogFile())
     }
 
     override suspend fun stopOpenList() = withContext(Dispatchers.IO) {
@@ -64,7 +66,7 @@ class DefaultRuntimeProcessController(
             "AUTO_MIGRATE" to "true"
         )
 
-        gatewayProcess = launch(bin, env)
+        gatewayProcess = launch(bin, env, logStore.gatewayLogFile())
     }
 
     override suspend fun stopGateway() = withContext(Dispatchers.IO) {
@@ -83,13 +85,15 @@ class DefaultRuntimeProcessController(
         return probe("http://127.0.0.1:${cfg.gateway.port}/healthz")
     }
 
-    private fun launch(binary: File, env: Map<String, String>): Process {
+    private fun launch(binary: File, env: Map<String, String>, outputFile: File): Process {
         require(binary.exists()) { "binary not found: ${binary.absolutePath}" }
         require(binary.canExecute()) { "binary not executable: ${binary.absolutePath}" }
+        outputFile.parentFile?.mkdirs()
 
         return ProcessBuilder(binary.absolutePath)
             .directory(binary.parentFile)
             .redirectErrorStream(true)
+            .redirectOutput(ProcessBuilder.Redirect.appendTo(outputFile))
             .apply {
                 environment().putAll(env)
             }

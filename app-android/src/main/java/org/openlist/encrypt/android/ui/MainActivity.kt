@@ -13,6 +13,7 @@ import org.openlist.encrypt.android.config.ConfigRepository
 import org.openlist.encrypt.android.config.ConfigValidator
 import org.openlist.encrypt.android.config.SchemaFieldRegistry
 import org.openlist.encrypt.android.diagnostics.DiagnosticItem
+import org.openlist.encrypt.android.diagnostics.RuntimeLogStore
 import org.openlist.encrypt.android.service.RuntimeService
 import org.openlist.encrypt.android.service.RuntimeServiceStateStore
 import org.openlist.encrypt.android.update.UpdateCoordinator
@@ -28,6 +29,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
     private lateinit var configRepo: ConfigRepository
     private lateinit var updateCoordinator: UpdateCoordinator
     private lateinit var updateHistoryStore: UpdateHistoryStore
+    private lateinit var logStore: RuntimeLogStore
 
     private var currentConfig: AppRuntimeConfig = AppRuntimeConfig()
     private var schemaFields = 0
@@ -44,6 +46,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         configRepo = ConfigRepository(this)
         updateCoordinator = UpdateCoordinator(this)
         updateHistoryStore = UpdateHistoryStore(this)
+        logStore = RuntimeLogStore(this)
         currentConfig = configRepo.loadOrDefault()
 
         schemaFields = runCatching {
@@ -94,12 +97,14 @@ class MainActivity : AppCompatActivity(), MainUiHost {
             val result = configRepo.saveAtomically(next)
             currentConfig = next
             lastChanged = result.changedKeys.size
+            logStore.appendApp("config.apply", "changed_keys=${result.changedKeys.size}")
             UiActionResult(
                 ok = true,
                 message = getString(R.string.save_success),
                 changedKeys = result.changedKeys
             )
         }.getOrElse { e ->
+            logStore.appendApp("config.apply.error", e.message ?: "unknown")
             UiActionResult(
                 ok = false,
                 message = getString(R.string.save_failed_prefix, e.message ?: "")
@@ -174,6 +179,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         } else {
             startService(intent)
         }
+        logStore.appendApp("runtime.start", "requested by ui")
         return UiActionResult(ok = true, message = getString(R.string.runtime_start_requested))
     }
 
@@ -182,6 +188,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
             action = RuntimeService.ACTION_STOP
         }
         startService(intent)
+        logStore.appendApp("runtime.stop", "requested by ui")
         return UiActionResult(ok = true, message = getString(R.string.runtime_stop_requested))
     }
 
@@ -189,6 +196,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         ioExecutor.execute {
             val result = updateCoordinator.checkLatest()
             runOnUiThread {
+                logStore.appendApp("update.check", "${result.stage}|${result.detail}")
                 onDone(
                     UiActionResult(
                         ok = result.ok,
@@ -203,6 +211,7 @@ class MainActivity : AppCompatActivity(), MainUiHost {
         ioExecutor.execute {
             val result = updateCoordinator.checkDownloadAndInstall()
             runOnUiThread {
+                logStore.appendApp("update.install", "${result.stage}|${result.detail}")
                 onDone(
                     UiActionResult(
                         ok = result.ok,
@@ -257,6 +266,31 @@ class MainActivity : AppCompatActivity(), MainUiHost {
                 )
             )
             runOnUiThread { onDone(items) }
+        }
+    }
+
+    override fun runLoadLogs(onDone: (String) -> Unit) {
+        ioExecutor.execute {
+            val content = logStore.mergedTail()
+            runOnUiThread { onDone(content) }
+        }
+    }
+
+    override fun runExportLogs(onDone: (UiActionResult) -> Unit) {
+        ioExecutor.execute {
+            val result = runCatching {
+                val out = logStore.exportMerged()
+                UiActionResult(
+                    ok = true,
+                    message = getString(R.string.logs_export_success, out.absolutePath)
+                )
+            }.getOrElse { e ->
+                UiActionResult(
+                    ok = false,
+                    message = getString(R.string.logs_export_failed, e.message ?: "")
+                )
+            }
+            runOnUiThread { onDone(result) }
         }
     }
 

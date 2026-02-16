@@ -23,6 +23,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         val updateStatus = view.findViewById<MaterialTextView>(R.id.updateStatus)
         val updateHistory = view.findViewById<MaterialTextView>(R.id.updateHistory)
         val snapshotsView = view.findViewById<MaterialTextView>(R.id.snapshotSummary)
+        val logsPreview = view.findViewById<MaterialTextView>(R.id.logsPreview)
         val expertContainer = view.findViewById<View>(R.id.expertContainer)
         val expertSwitch = view.findViewById<SwitchMaterial>(R.id.expertModeSwitch)
         val themeModeGroup = view.findViewById<RadioGroup>(R.id.themeModeGroup)
@@ -96,10 +97,18 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             }
         }
 
+        fun renderLogs() {
+            logsPreview.text = getString(R.string.logs_loading)
+            host.runLoadLogs { content ->
+                logsPreview.text = content
+            }
+        }
+
         renderOverview()
         renderDiagnostics()
         renderUpdateHistory()
         renderSnapshots()
+        renderLogs()
 
         val modeViewId = when (host.themeMode()) {
             ThemeModeStore.MODE_LIGHT -> R.id.themeModeLight
@@ -272,6 +281,17 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
                 }
                 .setNegativeButton(R.string.cancel_apply, null)
                 .show()
+        }
+
+        view.findViewById<View>(R.id.refreshLogsButton).setOnClickListener {
+            renderLogs()
+            Snackbar.make(view, R.string.logs_refreshed, Snackbar.LENGTH_SHORT).show()
+        }
+
+        view.findViewById<View>(R.id.exportLogsButton).setOnClickListener {
+            host.runExportLogs { result ->
+                Snackbar.make(view, result.message, Snackbar.LENGTH_LONG).show()
+            }
         }
     }
 }
