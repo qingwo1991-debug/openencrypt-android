@@ -24,7 +24,10 @@ class SchemaFieldRegistry(private val context: Context) {
         val map = mutableMapOf<String, String>()
         val errors = mutableListOf<String>()
         fields.forEach { f ->
-            val existing = map.putIfAbsent(f.key, f.primaryPage)
+            val existing = map[f.key]
+            if (existing == null) {
+                map[f.key] = f.primaryPage
+            }
             if (existing != null && existing != f.primaryPage) {
                 errors += "duplicate editable entry: ${f.key}"
             }
