@@ -67,6 +67,15 @@ jobs:
           cp app-android/build/outputs/apk/release/*arm64-v8a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-arm64-v8a.apk
           cp app-android/build/outputs/apk/release/*armeabi-v7a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-armeabi-v7a.apk
           sha256sum dist/*.apk > dist/checksums.txt
+      - name: Upload release artifacts to workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-${{ github.ref_name }}
+          path: |
+            dist/openencrypt-android-${{ github.ref_name }}-arm64-v8a.apk
+            dist/openencrypt-android-${{ github.ref_name }}-armeabi-v7a.apk
+            dist/checksums.txt
+          if-no-files-found: error
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:

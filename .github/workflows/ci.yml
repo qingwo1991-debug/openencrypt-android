@@ -79,6 +79,29 @@ jobs:
             exit 1
           fi
           "$GRADLE_CMD" :app-android:lintDebug :app-android:testDebugUnitTest :app-android:assembleDebug
+      - name: Collect debug APKs
+        if: success()
+        run: |
+          mkdir -p dist
+          ls -l app-android/build/outputs/apk/debug
+          compgen -G "app-android/build/outputs/apk/debug/*.apk" >/dev/null
+          cp app-android/build/outputs/apk/debug/*.apk dist/
+      - name: Upload debug APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk-${{ github.run_number }}
+          path: dist/*.apk
+          if-no-files-found: error
+      - name: Upload lint report artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report-${{ github.run_number }}
+          path: |
+            app-android/build/reports/lint-results-debug.html
+            app-android/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
+          if-no-files-found: warn
 
   go-placeholder:
     runs-on: ubuntu-latest
