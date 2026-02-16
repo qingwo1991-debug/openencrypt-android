@@ -2,8 +2,12 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -13,25 +17,63 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.10.2"
           cache-disabled: true
+
+      - name: Resolve release version and tag
+        id: version
+        run: |
+          set -euo pipefail
+          source tools/version-base.env
+
+          prefix="v${BASE_MAJOR}.${BASE_MINOR}."
+          head_tag="$(git tag --points-at HEAD | grep -E "^${prefix}[0-9]+$" | sort -V | tail -n1 || true)"
+
+          if [[ -n "$head_tag" ]]; then
+            next_tag="$head_tag"
+            next_patch="${head_tag#"$prefix"}"
+            created_tag="false"
+          else
+            eval "$(./tools/next-version.sh tools/version-base.env)"
+            next_tag="$NEXT_TAG"
+            next_patch="$NEXT_PATCH"
+            created_tag="true"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "$next_tag"
+            git push origin "$next_tag"
+          fi
+
+          next_version_code=$((START_VERSION_CODE + next_patch))
+
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+          echo "version_name=$next_tag" >> "$GITHUB_OUTPUT"
+          echo "version_code=$next_version_code" >> "$GITHUB_OUTPUT"
+          echo "created_tag=$created_tag" >> "$GITHUB_OUTPUT"
+
       - name: Validate signing secrets
         run: |
           test -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}"
           test -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
           test -n "${{ secrets.ANDROID_KEY_ALIAS }}"
           test -n "${{ secrets.ANDROID_KEY_PASSWORD }}"
+
       - name: Prepare keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
       - name: Validate keystore alias
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -41,14 +83,15 @@ jobs:
             -keystore release.keystore \
             -storepass "${ANDROID_KEYSTORE_PASSWORD}" \
             -alias "${ANDROID_KEY_ALIAS}" >/dev/null
+
       - name: Build release APKs
         env:
           ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          BUILD_VERSION_NAME: ${{ github.ref_name }}
-          BUILD_VERSION_CODE: ${{ github.run_number }}
+          BUILD_VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          BUILD_VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
           if [[ -x ./gradlew ]]; then
             GRADLE_CMD="./gradlew"
@@ -59,7 +102,10 @@ jobs:
             exit 1
           fi
           "$GRADLE_CMD" :app-android:assembleRelease
+
       - name: Collect artifacts
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           mkdir -p dist
           ls -l app-android/build/outputs/apk/release
@@ -71,22 +117,27 @@ jobs:
             echo "missing armeabi-v7a release APK under app-android/build/outputs/apk/release"
             exit 1
           fi
-          cp app-android/build/outputs/apk/release/*arm64-v8a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-arm64-v8a.apk
-          cp app-android/build/outputs/apk/release/*armeabi-v7a*.apk dist/openencrypt-android-${GITHUB_REF_NAME}-armeabi-v7a.apk
+          cp app-android/build/outputs/apk/release/*arm64-v8a*.apk "dist/openencrypt-android-${RELEASE_TAG}-arm64-v8a.apk"
+          cp app-android/build/outputs/apk/release/*armeabi-v7a*.apk "dist/openencrypt-android-${RELEASE_TAG}-armeabi-v7a.apk"
           sha256sum dist/*.apk > dist/checksums.txt
+
       - name: Upload release artifacts to workflow
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk-${{ github.ref_name }}
+          name: release-apk-${{ steps.version.outputs.tag }}
           path: |
-            dist/openencrypt-android-${{ github.ref_name }}-arm64-v8a.apk
-            dist/openencrypt-android-${{ github.ref_name }}-armeabi-v7a.apk
+            dist/openencrypt-android-${{ steps.version.outputs.tag }}-arm64-v8a.apk
+            dist/openencrypt-android-${{ steps.version.outputs.tag }}-armeabi-v7a.apk
             dist/checksums.txt
           if-no-files-found: error
+
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
           files: |
-            dist/openencrypt-android-${{ github.ref_name }}-arm64-v8a.apk
-            dist/openencrypt-android-${{ github.ref_name }}-armeabi-v7a.apk
+            dist/openencrypt-android-${{ steps.version.outputs.tag }}-arm64-v8a.apk
+            dist/openencrypt-android-${{ steps.version.outputs.tag }}-armeabi-v7a.apk
             dist/checksums.txt
+          generate_release_notes: true

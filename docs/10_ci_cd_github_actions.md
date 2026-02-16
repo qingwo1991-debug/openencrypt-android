@@ -10,7 +10,8 @@ Language: [中文](#中文) | [English](#english)
 - schema 校验
 
 ### Release CI（tag）
-- 触发条件：`v*.*.*`
+- 触发条件：`main` push（自动计算并创建下一个 `vX.Y.Z` tag）
+- 版本：`versionName=vX.Y.Z`，`versionCode` 自动递增（用于升级安装）
 - 产出：`arm64-v8a` 和 `armeabi-v7a` split APK
 - 签名：从 GitHub `production` Environment secrets 读取
 - 产物：APK + `checksums.txt` 发布到 GitHub Release
@@ -33,7 +34,8 @@ Language: [中文](#中文) | [English](#english)
 - schema validation
 
 ### Release CI (tag)
-- Trigger: `v*.*.*`
+- Trigger: push to `main` (auto-resolve and create next `vX.Y.Z` tag)
+- Versioning: `versionName=vX.Y.Z`, `versionCode` auto-incremented for upgrade installs
 - Outputs: split APKs for `arm64-v8a` and `armeabi-v7a`
 - Signing: read from GitHub `production` Environment secrets
 - Publish: APKs + `checksums.txt` to GitHub Release

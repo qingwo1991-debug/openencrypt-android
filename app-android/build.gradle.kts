@@ -8,7 +8,12 @@ android {
     compileSdk = 35
 
     val buildVersionName = System.getenv("BUILD_VERSION_NAME") ?: "0.1.0"
-    val buildVersionCode = (System.getenv("BUILD_VERSION_CODE") ?: "1").toInt()
+    val buildVersionCodeRaw = System.getenv("BUILD_VERSION_CODE") ?: "1"
+    val buildVersionCode = buildVersionCodeRaw.toIntOrNull()
+        ?: error("BUILD_VERSION_CODE must be an integer, got: $buildVersionCodeRaw")
+    require(buildVersionCode > 0) {
+        "BUILD_VERSION_CODE must be > 0, got: $buildVersionCode"
+    }
     val hasReleaseSigningEnv = listOf(
         "ANDROID_KEYSTORE_PATH",
         "ANDROID_KEYSTORE_PASSWORD",
