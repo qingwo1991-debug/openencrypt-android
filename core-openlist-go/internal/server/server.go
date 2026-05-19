@@ -14,6 +14,7 @@ import (
 	"github.com/openlist/openencrypt-android/core-openlist-go/internal/backoff"
 	"github.com/openlist/openencrypt-android/core-openlist-go/internal/config"
 	decryptor "github.com/openlist/openencrypt-android/core-openlist-go/internal/crypto"
+	"github.com/openlist/openencrypt-android/core-openlist-go/internal/db"
 	"github.com/openlist/openencrypt-android/core-openlist-go/internal/rules"
 )
 
@@ -21,7 +22,9 @@ type Server struct {
 	cfg       config.Config
 	gate      *backoff.Gate
 	decryptor *decryptor.Decryptor
+	encryptor *decryptor.ContentEncryptor
 	matcher   *rules.Matcher
+	db        *db.DB
 	log       *log.Logger
 
 	generalClient *http.Client
@@ -47,11 +50,19 @@ func New(cfg config.Config, logger *log.Logger) *Server {
 		logger.Printf("invalid ENCRYPT_RULES_JSON, ignored: %v", err)
 		matcher = &rules.Matcher{}
 	}
+
+	database, dbErr := db.Open(cfg.SQLitePath, cfg.AutoMigrate)
+	if dbErr != nil {
+		logger.Printf("sqlite open failed, admin endpoints unavailable: %v", dbErr)
+	}
+
 	return &Server{
 		cfg:       cfg,
 		gate:      &backoff.Gate{},
 		decryptor: decryptor.NewDecryptor(),
+		encryptor: decryptor.NewContentEncryptor(),
 		matcher:   matcher,
+		db:        database,
 		log:       logger,
 		generalClient: &http.Client{
 			Transport: tr,
@@ -68,6 +79,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/v1/admin/backoff/activate", s.handleBackoffActivate)
 	mux.HandleFunc("/v1/crypto/decrypt-names", s.handleDecryptNames)
+	mux.HandleFunc("/v2/admin/runtime-kv/", s.handleRuntimeKV)
+	mux.HandleFunc("/v2/admin/timeout-profiles/", s.handleTimeoutProfile)
+	mux.HandleFunc("/v2/admin/db/integrity", s.handleDBIntegrity)
+	mux.HandleFunc("/v2/admin/db/checkpoint", s.handleDBCheckpoint)
 	mux.HandleFunc("/", s.handleProxy)
 	return mux
 }
@@ -77,8 +92,10 @@ func (s *Server) handlePing(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	dbOK := s.db != nil && s.db.Ping() == nil
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":                     "ok",
+		"db":                         dbOK,
 		"gateway_base_url":           s.cfg.GatewayBaseURL,
 		"parallel_decrypt_enabled":   s.cfg.EnableParallelDecrypt,
 		"parallel_decrypt_threshold": s.cfg.ParallelDecryptThreshold,
@@ -148,20 +165,75 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), deadline)
 	defer cancel()
 
-	target := s.cfg.GatewayBaseURL + r.URL.RequestURI()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "read body failed"})
-		return
+	// ── encrypt rule matching ──
+	rule, matched := s.matcher.Match(r.URL.Path)
+	isWrite := isWriteMethod(r.Method)
+	cryptoOp := ""
+	if matched {
+		if isWrite {
+			cryptoOp = "encrypt"
+		} else {
+			cryptoOp = "decrypt"
+		}
 	}
 
-	upReq, err := http.NewRequestWithContext(ctx, r.Method, target, bytes.NewReader(body))
+	// ── build upstream URL ──
+	targetPath := r.URL.RequestURI()
+
+	// For uploads with enc_name: encrypt the filename in the path
+	// (downloads keep encrypted path as-is → sign stays valid)
+	if matched && rule.EncName && isWrite && cryptoOp == "encrypt" {
+		dir := path.Dir(r.URL.Path)
+		filename := path.Base(r.URL.Path)
+		if encryptedName, err := s.encryptor.EncryptName(filename, rule.Password, rule.EncType); err == nil {
+			newPath := dir
+			if newPath == "." {
+				newPath = ""
+			}
+			if !strings.HasPrefix(newPath, "/") {
+				newPath = "/" + newPath
+			}
+			newPath = strings.TrimSuffix(newPath, "/") + "/" + encryptedName
+			targetPath = newPath
+			if r.URL.RawQuery != "" {
+				targetPath += "?" + r.URL.RawQuery
+			}
+		}
+	}
+
+	target := s.cfg.GatewayBaseURL + targetPath
+
+	// ── request body ──
+	var bodyReader io.Reader
+	if cryptoOp == "encrypt" && rule.EncType != "" {
+		encryptedBody, err := s.encryptor.EncryptStream(r.Body, rule.EncType, rule.Password, r.ContentLength)
+		if err != nil {
+			s.log.Printf("encrypt stream error: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "encrypt body failed"})
+			return
+		}
+		bodyReader = encryptedBody
+	} else if isWrite {
+		bodyReader = io.LimitReader(r.Body, 1<<30)
+	} else {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "read body failed"})
+			return
+		}
+		bodyReader = bytes.NewReader(body)
+	}
+
+	upReq, err := http.NewRequestWithContext(ctx, r.Method, target, bodyReader)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "build upstream request failed"})
 		return
 	}
 	copyHeaders(upReq.Header, r.Header)
-	s.applyEncryptRuleHeaders(upReq, r)
+	if cryptoOp != "" {
+		upReq.Header.Del("Content-Length") // size changes with encryption
+	}
+	s.addEncryptRuleHeaders(upReq, rule, matched, cryptoOp)
 
 	resp, err := client.Do(upReq)
 	if err != nil {
@@ -177,17 +249,34 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		s.gate.Activate(s.cfg.UpstreamBackoff)
 	}
 
+	// ── response body ──
 	copyHeaders(w.Header(), resp.Header)
+	if cryptoOp == "decrypt" && rule.EncType != "" && resp.StatusCode < 400 {
+		decryptedBody, err := s.encryptor.DecryptStream(resp.Body, rule.EncType, rule.Password, resp.ContentLength)
+		if err != nil {
+			s.log.Printf("decrypt stream error: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "decrypt body failed"})
+			return
+		}
+		w.Header().Del("Content-Length") // size changes with decryption
+		w.WriteHeader(resp.StatusCode)
+		n, err := io.Copy(w, decryptedBody)
+		if err != nil {
+			s.log.Printf("copy decrypted body failed: %v", err)
+		}
+		s.log.Printf("< ts=%s method=%s route=%s status=%d dur_ms=%d bytes=%d crypto=%s", time.Now().Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), resp.StatusCode, time.Since(start).Milliseconds(), n, cryptoOp)
+		return
+	}
+
 	w.WriteHeader(resp.StatusCode)
 	n, err := io.Copy(w, resp.Body)
 	if err != nil {
 		s.log.Printf("copy body failed: %v", err)
 	}
-	s.log.Printf("< ts=%s method=%s route=%s status=%d dur_ms=%d bytes=%d", time.Now().Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), resp.StatusCode, time.Since(start).Milliseconds(), n)
+	s.log.Printf("< ts=%s method=%s route=%s status=%d dur_ms=%d bytes=%d crypto=%s", time.Now().Format(time.RFC3339Nano), r.Method, r.URL.RequestURI(), resp.StatusCode, time.Since(start).Milliseconds(), n, cryptoOp)
 }
 
-func (s *Server) applyEncryptRuleHeaders(upReq *http.Request, originalReq *http.Request) {
-	rule, matched := s.matcher.Match(originalReq.URL.Path)
+func (s *Server) addEncryptRuleHeaders(upReq *http.Request, rule rules.CompiledRule, matched bool, op string) {
 	if !matched {
 		upReq.Header.Del("X-OpenEncrypt-Rule-Matched")
 		upReq.Header.Del("X-OpenEncrypt-Rule-Path")
@@ -196,11 +285,6 @@ func (s *Server) applyEncryptRuleHeaders(upReq *http.Request, originalReq *http.
 		upReq.Header.Del("X-OpenEncrypt-Rule-Password")
 		upReq.Header.Del("X-OpenEncrypt-Operation")
 		return
-	}
-
-	op := "decrypt"
-	if isWriteMethod(originalReq.Method) {
-		op = "encrypt"
 	}
 	upReq.Header.Set("X-OpenEncrypt-Rule-Matched", "true")
 	upReq.Header.Set("X-OpenEncrypt-Rule-Path", rule.Path)
@@ -234,6 +318,114 @@ func isWriteMethod(method string) bool {
 	default:
 		return false
 	}
+}
+
+// ── v2 admin handlers (ported from Rust gateway) ──
+
+func (s *Server) handleRuntimeKV(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database unavailable"})
+		return
+	}
+	key := strings.TrimPrefix(r.URL.Path, "/v2/admin/runtime-kv/")
+	if key == "" || strings.Contains(key, "/") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid key"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		v, ok, err := s.db.GetRuntimeKV(key)
+		if err != nil {
+			s.log.Printf("runtime-kv get error: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db error"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"key": key, "value": v, "found": ok})
+	case http.MethodPut:
+		var payload struct {
+			Value string `json:"value"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.Value == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing 'value' string"})
+			return
+		}
+		if err := s.db.SetRuntimeKV(key, payload.Value); err != nil {
+			s.log.Printf("runtime-kv set error: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db error"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "key": key})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (s *Server) handleTimeoutProfile(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database unavailable"})
+		return
+	}
+	ifaceName := strings.TrimPrefix(r.URL.Path, "/v2/admin/timeout-profiles/")
+	if ifaceName == "" || strings.Contains(ifaceName, "/") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid iface_name"})
+		return
+	}
+	tenantID := "default"
+	switch r.Method {
+	case http.MethodGet:
+		profile, found, err := s.db.LoadTimeoutProfile(tenantID, ifaceName)
+		if err != nil {
+			s.log.Printf("timeout-profile get error: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db error"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"tenant_id":  tenantID,
+			"iface_name": ifaceName,
+			"profile":    profile,
+			"found":      found,
+		})
+	case http.MethodPut:
+		var profile db.TimeoutProfile
+		if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid profile payload"})
+			return
+		}
+		if err := s.db.UpsertTimeoutProfile(tenantID, ifaceName, profile); err != nil {
+			s.log.Printf("timeout-profile upsert error: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db error"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "tenant_id": tenantID, "iface_name": ifaceName})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (s *Server) handleDBIntegrity(w http.ResponseWriter, _ *http.Request) {
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database unavailable"})
+		return
+	}
+	if err := s.db.IntegrityCheck(); err != nil {
+		s.log.Printf("db integrity check failed: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleDBCheckpoint(w http.ResponseWriter, _ *http.Request) {
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database unavailable"})
+		return
+	}
+	if err := s.db.WALCheckpointTruncate(); err != nil {
+		s.log.Printf("db checkpoint error: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "checkpoint": "TRUNCATE"})
 }
 
 func writeJSON(w http.ResponseWriter, code int, payload any) {

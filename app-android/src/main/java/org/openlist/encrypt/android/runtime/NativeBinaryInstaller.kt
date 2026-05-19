@@ -23,10 +23,6 @@ class NativeBinaryInstaller(private val context: Context) {
                 details += "${it.binary}:${it.detail}"
                 allOk = allOk && it.ok
             }
-            installBinary("openencrypt-gateway").also {
-                details += "${it.binary}:${it.detail}"
-                allOk = allOk && it.ok
-            }
             val report = InstallReport(allOk, details.joinToString("; "))
             writeReport(report)
             report

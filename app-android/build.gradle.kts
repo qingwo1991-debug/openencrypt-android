@@ -6,7 +6,7 @@ plugins {
 }
 
 val runtimeAbis = listOf("arm64-v8a", "armeabi-v7a")
-val runtimeNames = listOf("openlist-runtime", "openencrypt-gateway")
+val runtimeNames = listOf("openlist-runtime")
 val runtimeAssetRoot = file("src/main/assets/bin")
 
 fun pickFirstExisting(candidates: List<File>): File? = candidates.firstOrNull { it.isFile }
@@ -29,21 +29,9 @@ val syncAndroidRuntimeBinaries by tasks.registering {
                     File(repoRoot, "core-openlist-go/target/android/$abi/openlist-runtime")
                 )
             )
-            val gatewaySrc = pickFirstExisting(
-                listOfNotNull(
-                    customRoot?.let { File(it, "$abi/openencrypt-gateway") },
-                    File(repoRoot, "core-encrypt-rs/target/android/$abi/openencrypt-gateway")
-                )
-            )
             if (openListSrc != null) {
                 copy {
                     from(openListSrc)
-                    into(outDir)
-                }
-            }
-            if (gatewaySrc != null) {
-                copy {
-                    from(gatewaySrc)
                     into(outDir)
                 }
             }
@@ -73,7 +61,6 @@ val verifyAndroidRuntimeBinaries by tasks.registering {
                     appendLine("Provide binaries via one of:")
                     appendLine("1) RUNTIME_BIN_ROOT=<dir> with <dir>/<abi>/<binary>")
                     appendLine("2) core-openlist-go/target/android/<abi>/openlist-runtime")
-                    appendLine("3) core-encrypt-rs/target/android/<abi>/openencrypt-gateway")
                 }
             )
         }

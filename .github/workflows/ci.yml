@@ -23,37 +23,6 @@ jobs:
         run: |
           python3 tools/schema-check.py
 
-  rust-core:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Skip when Rust core is absent
-        id: rust-check
-        run: |
-          if [[ -f core-encrypt-rs/Cargo.toml ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Set up Rust
-        if: steps.rust-check.outputs.exists == 'true'
-        uses: dtolnay/rust-toolchain@stable
-      - name: Rust fmt check
-        if: steps.rust-check.outputs.exists == 'true'
-        run: |
-          cd core-encrypt-rs
-          cargo fmt --all -- --check
-      - name: Rust clippy
-        if: steps.rust-check.outputs.exists == 'true'
-        run: |
-          cd core-encrypt-rs
-          cargo clippy -- -D warnings
-      - name: Rust test
-        if: steps.rust-check.outputs.exists == 'true'
-        run: |
-          cd core-encrypt-rs
-          cargo test
-
   android-sanity:
     runs-on: ubuntu-latest
     steps:
@@ -68,8 +37,6 @@ jobs:
       - name: Install Android NDK
         run: |
           yes | sdkmanager --install "ndk;27.1.12297006"
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -158,8 +125,6 @@ jobs:
       - name: Install Android NDK
         run: |
           yes | sdkmanager --install "ndk;27.1.12297006"
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
       - name: Set up Go
         uses: actions/setup-go@v5
         with:

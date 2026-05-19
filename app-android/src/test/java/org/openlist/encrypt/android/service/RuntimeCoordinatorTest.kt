@@ -7,7 +7,7 @@ import org.junit.Test
 class RuntimeCoordinatorTest {
     @Test
     fun startAndStopTransitions() = runTest {
-        val c = FakeController(openListHealthy = true, gatewayHealthy = true)
+        val c = FakeController(openListHealthy = true)
         val coordinator = RuntimeCoordinator(c, maxRecoverAttempts = 1)
 
         coordinator.startAll()
@@ -15,12 +15,12 @@ class RuntimeCoordinatorTest {
 
         coordinator.stopAll()
         assertEquals(RuntimeState.Stopped, coordinator.currentState())
-        assertEquals(listOf("startGateway", "startOpenList", "stopOpenList", "stopGateway"), c.calls)
+        assertEquals(listOf("startOpenList", "stopOpenList"), c.calls)
     }
 
     @Test
     fun entersDegradedWhenRecoveryExhausted() = runTest {
-        val c = FakeController(openListHealthy = false, gatewayHealthy = false)
+        val c = FakeController(openListHealthy = false)
         val coordinator = RuntimeCoordinator(c, maxRecoverAttempts = 1)
 
         coordinator.startAll()
@@ -29,8 +29,7 @@ class RuntimeCoordinatorTest {
 }
 
 private class FakeController(
-    private val openListHealthy: Boolean,
-    private val gatewayHealthy: Boolean
+    private val openListHealthy: Boolean
 ) : RuntimeProcessController {
     val calls = mutableListOf<String>()
 
@@ -42,15 +41,5 @@ private class FakeController(
         calls += "stopOpenList"
     }
 
-    override suspend fun startGateway() {
-        calls += "startGateway"
-    }
-
-    override suspend fun stopGateway() {
-        calls += "stopGateway"
-    }
-
     override suspend fun checkOpenListHealth(): Boolean = openListHealthy
-
-    override suspend fun checkGatewayHealth(): Boolean = gatewayHealthy
 }

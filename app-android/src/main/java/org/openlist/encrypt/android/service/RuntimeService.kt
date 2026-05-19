@@ -53,7 +53,7 @@ class RuntimeService : Service() {
                     coordinator.startAll()
                     val state = coordinator.currentState()
                     if (state == RuntimeState.Running) {
-                        RuntimeServiceStateStore.markRunning(applicationContext, "gateway/openlist healthy")
+                        RuntimeServiceStateStore.markRunning(applicationContext, "openlist healthy")
                     } else {
                         val detail = coordinator.lastErrorDetail().ifBlank { "runtime degraded" }
                         RuntimeServiceStateStore.markDegraded(applicationContext, detail)

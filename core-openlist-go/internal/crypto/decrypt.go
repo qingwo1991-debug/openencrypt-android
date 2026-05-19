@@ -3,6 +3,7 @@ package crypto
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -81,4 +82,15 @@ func decodeName(name string) string {
 		}
 	}
 	return strings.ReplaceAll(trimmed, "__", "/")
+}
+
+// decodeNameToRaw returns raw bytes for a filename encoded with b64_ prefix.
+// Used by ContentEncryptor.DecryptName for actual cryptographic decryption.
+func decodeNameToRaw(name string) ([]byte, error) {
+	trimmed := strings.TrimSuffix(name, ".enc")
+	if strings.HasPrefix(trimmed, "b64_") {
+		raw := strings.TrimPrefix(trimmed, "b64_")
+		return base64.RawURLEncoding.DecodeString(raw)
+	}
+	return nil, fmt.Errorf("name not b64_ encoded: %q", name)
 }

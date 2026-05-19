@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/openlist/openencrypt-android/core-openlist-go/internal/config"
+	decryptor "github.com/openlist/openencrypt-android/core-openlist-go/internal/crypto"
 )
 
 func TestDecryptEndpoint(t *testing.T) {
@@ -209,5 +210,117 @@ func TestProxyInjectsEncryptRuleHeaders(t *testing.T) {
 	}
 	if gotRulePath != "/123/encrypt/*" || gotEncType != "aes-ctr" || gotEncName != "true" || gotPassword != "secret" {
 		t.Fatalf("unexpected rule headers path=%q encType=%q encName=%q password=%q", gotRulePath, gotEncType, gotEncName, gotPassword)
+	}
+}
+
+func TestProxyDecryptsResponseBody(t *testing.T) {
+	original := []byte("hello from encrypted storage")
+	password := "decrypt-test-key"
+	encType := "aes-ctr"
+
+	ce := decryptor.NewContentEncryptor()
+	encryptedReader, err := ce.EncryptStream(bytes.NewReader(original), encType, password, int64(len(original)))
+	if err != nil {
+		t.Fatalf("pre-encrypt: %v", err)
+	}
+	encryptedData, _ := io.ReadAll(encryptedReader)
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(encryptedData)
+	}))
+	defer upstream.Close()
+
+	cfg := config.Config{
+		ListenAddr:               "127.0.0.1:0",
+		GatewayBaseURL:           upstream.URL,
+		EncryptRulesJSON:         `[{"path":"/files/*","password":"` + password + `","enc_type":"` + encType + `","enc_name":false,"enable":true}]`,
+		HeaderTimeout:            1 * time.Second,
+		ReadIdleTimeout:          1 * time.Second,
+		ProbeBudgetList:          1 * time.Second,
+		ProbeBudgetStream:        1 * time.Second,
+		UpstreamBackoff:          1 * time.Second,
+		EnableUpstreamFastFail:   true,
+		EnableParallelDecrypt:    true,
+		ParallelDecryptThreshold: 1,
+		ParallelDecryptConcurrency: 2,
+	}
+	srv := New(cfg, log.New(io.Discard, "", 0))
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/files/document.bin")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	got, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+
+	if !bytes.Equal(got, original) {
+		t.Fatalf("decrypted body mismatch: got %q, want %q", string(got), string(original))
+	}
+}
+
+func TestProxyEncryptsRequestBody(t *testing.T) {
+	original := []byte("this will be encrypted on the wire")
+	password := "encrypt-test-key"
+	encType := "aes-ctr"
+
+	var upstreamGotBody []byte
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamGotBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer upstream.Close()
+
+	cfg := config.Config{
+		ListenAddr:               "127.0.0.1:0",
+		GatewayBaseURL:           upstream.URL,
+		EncryptRulesJSON:         `[{"path":"/upload/*","password":"` + password + `","enc_type":"` + encType + `","enc_name":false,"enable":true}]`,
+		HeaderTimeout:            1 * time.Second,
+		ReadIdleTimeout:          1 * time.Second,
+		ProbeBudgetList:          1 * time.Second,
+		ProbeBudgetStream:        1 * time.Second,
+		UpstreamBackoff:          1 * time.Second,
+		EnableUpstreamFastFail:   true,
+		EnableParallelDecrypt:    true,
+		ParallelDecryptThreshold: 1,
+		ParallelDecryptConcurrency: 2,
+	}
+	srv := New(cfg, log.New(io.Discard, "", 0))
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/upload/file.bin", "application/octet-stream", bytes.NewReader(original))
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	if bytes.Equal(upstreamGotBody, original) {
+		t.Fatal("upstream received raw plaintext — encryption did not happen")
+	}
+
+	ce := decryptor.NewContentEncryptor()
+	decryptedReader, err := ce.DecryptStream(bytes.NewReader(upstreamGotBody), encType, password, int64(len(upstreamGotBody)))
+	if err != nil {
+		t.Fatalf("decrypt: %v", err)
+	}
+	decrypted, _ := io.ReadAll(decryptedReader)
+	if !bytes.Equal(decrypted, original) {
+		t.Fatalf("encrypt→decrypt mismatch")
 	}
 }

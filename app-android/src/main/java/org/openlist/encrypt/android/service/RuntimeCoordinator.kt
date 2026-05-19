@@ -24,7 +24,6 @@ class RuntimeCoordinator(
 
     suspend fun stopAll() {
         runCatching { processController.stopOpenList() }
-        runCatching { processController.stopGateway() }
         state = RuntimeState.Stopped
     }
 
@@ -32,11 +31,6 @@ class RuntimeCoordinator(
     fun lastErrorDetail(): String = lastError
 
     private suspend fun startSequence() {
-        processController.startGateway()
-        if (!waitHealthy { processController.checkGatewayHealth() }) {
-            throw IllegalStateException("gateway health check timeout")
-        }
-
         processController.startOpenList()
         if (!waitHealthy { processController.checkOpenListHealth() }) {
             throw IllegalStateException("openlist health check timeout")
@@ -61,9 +55,9 @@ class RuntimeCoordinator(
     }
 
     private suspend fun waitHealthy(check: suspend () -> Boolean): Boolean {
-        repeat(8) {
+        repeat(10) {
             if (check()) return true
-            delay(250)
+            delay(200)
         }
         return false
     }

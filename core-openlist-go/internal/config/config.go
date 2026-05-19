@@ -11,6 +11,8 @@ import (
 type Config struct {
 	ListenAddr                 string
 	GatewayBaseURL             string
+	SQLitePath                 string
+	AutoMigrate                bool
 	EncryptRulesJSON           string
 	HeaderTimeout              time.Duration
 	ReadIdleTimeout            time.Duration
@@ -27,6 +29,8 @@ func FromEnv() (Config, error) {
 	cfg := Config{
 		ListenAddr:                 getenv("LISTEN_ADDR", "127.0.0.1:5244"),
 		GatewayBaseURL:             strings.TrimRight(getenv("GATEWAY_BASE_URL", "http://127.0.0.1:5344"), "/"),
+		SQLitePath:                 getenv("SQLITE_PATH", "./data/openencrypt.sqlite3"),
+		AutoMigrate:                getenvBool("AUTO_MIGRATE", true),
 		EncryptRulesJSON:           strings.TrimSpace(os.Getenv("ENCRYPT_RULES_JSON")),
 		HeaderTimeout:              ms(getenvInt("HEADER_TIMEOUT_MS", 5000)),
 		ReadIdleTimeout:            ms(getenvInt("READ_IDLE_TIMEOUT_MS", 12000)),
@@ -35,7 +39,7 @@ func FromEnv() (Config, error) {
 		UpstreamBackoff:            time.Duration(getenvInt("UPSTREAM_BACKOFF_SECONDS", 20)) * time.Second,
 		EnableUpstreamFastFail:     getenvBool("ENABLE_UPSTREAM_FAST_FAIL", true),
 		EnableParallelDecrypt:      getenvBool("ENABLE_PARALLEL_DECRYPT", true),
-		ParallelDecryptThreshold:   getenvInt("PARALLEL_DECRYPT_THRESHOLD", 24),
+		ParallelDecryptThreshold:   getenvInt("PARALLEL_DECRYPT_THRESHOLD", 8),
 		ParallelDecryptConcurrency: getenvInt("PARALLEL_DECRYPT_CONCURRENCY", 4),
 	}
 
